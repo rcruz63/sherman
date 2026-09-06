@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Facing, MissionJSON, RawHexConfig, RawTerrainType } from '../../types/game';
 import { autoFixMapConfig, validateMapConfig, ValidationResult, INDEX_TO_DIR } from '../../core/hex/mapValidator';
-import { mission1Data } from '../../data/missions/mission1';
+import { missions } from '../../data/missions';
 import { HexBoard } from '../board/HexBoard';
 import { loadMissionState } from '../../core/rules/missionLoader';
 import { useGameStore } from '../../store/gameStore';
@@ -11,12 +11,12 @@ interface MapEditorModalProps {
   onClose: () => void;
 }
 
-type EditorTool = 'terrain' | 'treeline' | 'road' | 'blackSpot' | 'redSpot' | 'entryExit';
+type EditorTool = 'terrain' | 'treeline' | 'road' | 'blackSpot' | 'redSpot' | 'entryExit' | 'bridge';
 
 const EMPTY_MISSION: MissionJSON = {
-  id: 99,
-  title: "Escenario Personalizado",
-  briefing: "Escenario creado con el Editor de Mapas.",
+  id: 2,
+  title: "Misión 2 - Escenario Personalizado",
+  briefing: "Avanza según las órdenes y elimina a los enemigos.",
   grid: {
     orientation: "flat-topped",
     columns: [
@@ -83,12 +83,13 @@ const EMPTY_MISSION: MissionJSON = {
     }
     return { col: 0, row: 0, terrain: "FIELD" };
   }),
-  shermanDicePool: mission1Data.shermanDicePool,
-  endOfTurnEvents: mission1Data.endOfTurnEvents
+  shermanDicePool: missions[0].shermanDicePool,
+  endOfTurnEvents: missions[0].endOfTurnEvents
 };
 
 export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose }) => {
-  const [mission, setMission] = useState<MissionJSON>(JSON.parse(JSON.stringify(mission1Data)));
+  const [selectedMissionId, setSelectedMissionId] = useState<number>(1);
+  const [mission, setMission] = useState<MissionJSON>(JSON.parse(JSON.stringify(missions[0])));
   const [activeTool, setActiveTool] = useState<EditorTool>('terrain');
   const [selectedTerrain, setSelectedTerrain] = useState<RawTerrainType>('FIELD');
   const [selectedEdgeDir, setSelectedEdgeDir] = useState<Facing>(1); // NE
@@ -99,6 +100,12 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
   const { loadMission, addLogMessage } = useGameStore();
 
   if (!isOpen) return null;
+
+  const handleSelectMissionTemplate = (id: number) => {
+    setSelectedMissionId(id);
+    const target = missions.find((m) => m.id === id) || missions[0];
+    setMission(JSON.parse(JSON.stringify(target)));
+  };
 
   const validation: ValidationResult = validateMapConfig(mission);
   const previewState = loadMissionState(mission, { selectedBlackSpawns: [1, 2] });
@@ -118,6 +125,14 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
         } else if (selectedTerrain !== 'ROAD') {
           newHex.hasBuilding = false;
         }
+        if (selectedTerrain !== 'WATER') {
+          newHex.isBridge = false;
+        }
+      } else if (activeTool === 'bridge') {
+        newHex.isBridge = !newHex.isBridge;
+        if (newHex.isBridge) {
+          newHex.terrain = 'WATER';
+        }
       } else if (activeTool === 'treeline') {
         const dirStr = INDEX_TO_DIR[selectedEdgeDir];
         const lines = newHex.treeLines ? [...newHex.treeLines] : [];
@@ -133,7 +148,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
           newHex.roadEdges = roads.filter((d) => d !== dirStr);
         } else {
           newHex.roadEdges = [...roads, dirStr];
-          if (newHex.terrain !== 'BUILDING') {
+          if (newHex.terrain !== 'BUILDING' && newHex.terrain !== 'WATER') {
             newHex.terrain = 'ROAD';
           }
         }
@@ -182,41 +197,54 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mision_personalizada_${Date.now()}.json`;
+    a.download = `mission${mission.id}.json`;
     a.click();
   };
 
   const handlePlayMission = () => {
     const fixed = autoFixMapConfig(mission);
     loadMission(fixed);
-    addLogMessage(`🛠️ Escenario personalizado cargado en el juego.`);
+    addLogMessage(`🛠️ Misión ${fixed.id} ("${fixed.title}") cargada en el juego.`);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col p-4 overflow-hidden">
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between border-b border-slate-800 pb-3 mb-3 gap-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🛠️</span>
           <div>
-            <h2 className="text-xl font-bold text-amber-400">Editor de Escenarios & Validador de Mapas</h2>
-            <p className="text-xs text-slate-400">Diseña, edita y valida tableros hexagonales en tiempo real.</p>
+            <h2 className="text-xl font-bold text-amber-400">Editor de Misiones de Campaña (1 al 13)</h2>
+            <p className="text-xs text-slate-400">Crea y edita mapas para la campaña de 13 escenarios con validación automática.</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Campaign Mission Selector Dropdown */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="text-xs font-semibold text-slate-300">Cargar Plantilla:</label>
+          <select
+            value={selectedMissionId}
+            onChange={(e) => handleSelectMissionTemplate(Number(e.target.value))}
+            className="bg-slate-900 border border-slate-700 text-amber-400 text-xs font-bold rounded px-2.5 py-1.5 focus:outline-none"
+          >
+            {missions.map((m) => (
+              <option key={m.id} value={m.id}>
+                Misión {m.id}: {m.title}
+              </option>
+            ))}
+          </select>
+
           <button
-            onClick={() => setMission(JSON.parse(JSON.stringify(EMPTY_MISSION)))}
+            onClick={() => {
+              const empty = JSON.parse(JSON.stringify(EMPTY_MISSION));
+              empty.id = selectedMissionId;
+              empty.title = `Misión ${selectedMissionId} - Nuevo Escenario`;
+              setMission(empty);
+            }}
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded border border-slate-700"
           >
             🧹 Vaciar Tablero
-          </button>
-          <button
-            onClick={() => setMission(JSON.parse(JSON.stringify(mission1Data)))}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded border border-slate-700"
-          >
-            🏰 Cargar Misión 1
           </button>
           <button
             onClick={handleAutoFix}
@@ -234,13 +262,13 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
             onClick={handleDownloadJSON}
             className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded shadow"
           >
-            💾 Descargar
+            💾 Descargar mission{mission.id}.json
           </button>
           <button
             onClick={handlePlayMission}
             className="px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded shadow transition"
           >
-            ▶ Jugar Mapa
+            ▶ Jugar Misión
           </button>
           <button
             onClick={onClose}
@@ -257,8 +285,41 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
         </div>
       )}
 
+      {/* Mission Metadata Fields */}
+      <div className="bg-slate-900 border border-slate-800 p-2 rounded mb-2 grid grid-cols-12 gap-2 text-xs">
+        <div className="col-span-2 flex items-center gap-1.5">
+          <label className="font-bold text-slate-400">Misión #:</label>
+          <input
+            type="number"
+            min={1}
+            max={13}
+            value={mission.id}
+            onChange={(e) => setMission({ ...mission, id: Number(e.target.value) })}
+            className="w-16 bg-slate-950 border border-slate-700 text-amber-400 font-bold px-2 py-1 rounded"
+          />
+        </div>
+        <div className="col-span-4 flex items-center gap-1.5">
+          <label className="font-bold text-slate-400">Título:</label>
+          <input
+            type="text"
+            value={mission.title}
+            onChange={(e) => setMission({ ...mission, title: e.target.value })}
+            className="flex-1 bg-slate-950 border border-slate-700 text-slate-100 px-2 py-1 rounded"
+          />
+        </div>
+        <div className="col-span-6 flex items-center gap-1.5">
+          <label className="font-bold text-slate-400">Briefing:</label>
+          <input
+            type="text"
+            value={mission.briefing}
+            onChange={(e) => setMission({ ...mission, briefing: e.target.value })}
+            className="flex-1 bg-slate-950 border border-slate-700 text-slate-100 px-2 py-1 rounded"
+          />
+        </div>
+      </div>
+
       {/* Validation Status Banner */}
-      <div className={`p-2.5 mb-3 rounded-lg border text-xs flex items-center justify-between ${validation.isValid ? 'bg-emerald-950/70 border-emerald-700 text-emerald-300' : 'bg-rose-950/70 border-rose-700 text-rose-300'}`}>
+      <div className={`p-2.5 mb-2 rounded-lg border text-xs flex items-center justify-between ${validation.isValid ? 'bg-emerald-950/70 border-emerald-700 text-emerald-300' : 'bg-rose-950/70 border-rose-700 text-rose-300'}`}>
         <div className="flex items-center gap-2">
           <span className="font-bold text-sm">{validation.isValid ? '✓ MAPA VÁLIDO' : '⚠ ERRORES DE VALIDACIÓN DETECTADOS'}</span>
           <span className="opacity-80">({validation.issues.length} incidencias registradas)</span>
@@ -288,6 +349,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
               {(
                 [
                   { id: 'terrain', label: '🌾 Terreno' },
+                  { id: 'bridge', label: '🌉 Puente' },
                   { id: 'treeline', label: '🌳 Arboleda' },
                   { id: 'road', label: '🛣️ Carretera' },
                   { id: 'blackSpot', label: '🎯 Spot Negro' },
@@ -316,8 +378,9 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
                     { id: 'FIELD', label: '🌾 Campo (Verde)' },
                     { id: 'ROAD', label: '🛣️ Carretera (Gris)' },
                     { id: 'MUD', label: '🤎 Barro (Marrón)' },
-                    { id: 'WOODS', label: '🌲 Bosque (Verde Oscuro)' },
+                    { id: 'WOODS', label: '🌲 Bosque Frondoso (Interior)' },
                     { id: 'BUILDING', label: '🏠 Pueblo / Edificio' },
+                    { id: 'WATER', label: '🌊 Agua (Impasable)' },
                   ] as const
                 ).map((t) => (
                   <button
@@ -329,6 +392,15 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {activeTool === 'bridge' && (
+            <div className="space-y-2">
+              <h4 className="font-semibold text-slate-300">Puente sobre Agua:</h4>
+              <p className="text-[11px] text-slate-400">
+                Haz clic en cualquier hexágono para alternar un <b>Puente</b>. El puente permite a los tanques cruzar hexágonos de <b>Agua</b> siguiendo la carretera.
+              </p>
             </div>
           )}
 
@@ -404,10 +476,12 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
           )}
 
           <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400">
-            <p className="font-semibold text-slate-300 mb-1">💡 Consejos:</p>
+            <p className="font-semibold text-slate-300 mb-1">💡 Flujo de Trabajo:</p>
             <ul className="list-disc list-inside space-y-0.5">
-              <li>Haz clic en un hexágono para aplicar el cambio.</li>
-              <li>Usa <b>⚡ Auto-Corregir</b> para sincronizar automáticamente las arboledas compartidas.</li>
+              <li>Selecciona la plantilla (Misión 1 a 13).</li>
+              <li>Edita el terreno, carreteras y arboledas.</li>
+              <li>Presiona <b>⚡ Auto-Corregir Red</b>.</li>
+              <li>Descarga <b>mission{mission.id}.json</b> para sustituir la misión oficial.</li>
             </ul>
           </div>
         </div>

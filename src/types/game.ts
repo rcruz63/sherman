@@ -242,6 +242,7 @@ export interface RawHexConfig {
   redSpot?: number;
   isEntry?: boolean;
   isExit?: boolean;
+  isBridge?: boolean;
 }
 
 export interface GridColumnConfig {

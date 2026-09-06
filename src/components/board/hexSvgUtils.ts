@@ -63,8 +63,10 @@ export function getHexEdgeEndpoints(corners: Point2D[], edgeIndex: Facing): { p1
 
 /**
  * Returns rotation angle in degrees for tank unit facing direction (0..5)
- * 0: N (0°), 1: NE (60°), 2: SE (120°), 3: S (180°), 4: SW (240°), 5: NW (300°)
+ * for flat-topped hexes (pointing perpendicular to hex edges):
+ * 0: N (270° - Top edge), 1: NE (330° - Top-Right edge), 2: SE (30° - Bottom-Right edge),
+ * 3: S (90° - Bottom edge), 4: SW (150° - Bottom-Left edge), 5: NW (210° - Top-Left edge)
  */
 export function getFacingAngleDegrees(facing: Facing): number {
-  return facing * 60;
+  return (270 + facing * 60) % 360;
 }

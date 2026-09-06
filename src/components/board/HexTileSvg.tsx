@@ -43,8 +43,25 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         strokeWidth={isSelected ? 3.5 : 1.5}
       />
 
+      {/* Water Waves Decoration */}
+      {tile.terrain === 'water' && (
+        <g opacity={0.6} transform={`translate(${center.x}, ${center.y})`}>
+          <path d="M -16 -8 Q -8 -14 0 -8 Q 8 -2 16 -8" stroke="#60a5fa" strokeWidth={1.5} fill="none" />
+          <path d="M -12 2 Q -4 -4 4 2 Q 12 8 20 2" stroke="#93c5fd" strokeWidth={1.5} fill="none" />
+          <path d="M -18 12 Q -10 6 -2 12 Q 6 18 14 12" stroke="#60a5fa" strokeWidth={1.5} fill="none" />
+        </g>
+      )}
+
+      {/* Bridge Support Structures over Water */}
+      {tile.isBridge && (
+        <g transform={`translate(${center.x}, ${center.y})`}>
+          <rect x={-18} y={-14} width={36} height={5} rx={1} fill="#78350f" stroke="#451a03" strokeWidth={1} />
+          <rect x={-18} y={9} width={36} height={5} rx={1} fill="#78350f" stroke="#451a03" strokeWidth={1} />
+        </g>
+      )}
+
       {/* Road Center Paths & Dashed Centerline (renders on road terrain and buildings with roads) */}
-      {(tile.terrain === 'road' || (tile.roadEdges && tile.roadEdges.length > 0)) && (
+      {(tile.terrain === 'road' || tile.isBridge || (tile.roadEdges && tile.roadEdges.length > 0)) && (
         <g opacity={0.9}>
           {tile.roadEdges && tile.roadEdges.length > 0 ? (
             tile.roadEdges.map((dir) => {
@@ -83,13 +100,23 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         </g>
       )}
 
-      {/* Terrain Icon / Texture Decoration */}
+      {/* Prominent Full WOODS Forest Interior Decoration */}
       {tile.terrain === 'woods' && (
-        <g opacity={0.7} transform={`translate(${center.x}, ${center.y})`}>
-          <circle cx={-8} cy={-4} r={8} fill="#10b981" />
-          <circle cx={8} cy={-4} r={8} fill="#059669" />
-          <circle cx={0} cy={-12} r={9} fill="#34d399" />
-          <path d="M 0 -3 L -2 8 L 2 8 Z" fill="#022c22" />
+        <g transform={`translate(${center.x}, ${center.y})`}>
+          {/* Tree Trunks */}
+          <rect x={-2} y={-4} width={4} height={14} fill="#451a03" />
+          <rect x={-14} y={2} width={3} height={10} fill="#451a03" />
+          <rect x={10} y={2} width={3} height={10} fill="#451a03" />
+          <rect x={-10} y={10} width={3} height={8} fill="#451a03" />
+          <rect x={6} y={10} width={3} height={8} fill="#451a03" />
+
+          {/* Lush 3D Tree Crowns */}
+          <circle cx={0} cy={-4} r={11} fill="#047857" stroke="#022c22" strokeWidth={0.75} />
+          <circle cx={-12} cy={2} r={9} fill="#059669" stroke="#022c22" strokeWidth={0.75} />
+          <circle cx={12} cy={2} r={9} fill="#10b981" stroke="#022c22" strokeWidth={0.75} />
+          <circle cx={0} cy={-13} r={8} fill="#34d399" stroke="#022c22" strokeWidth={0.75} />
+          <circle cx={-8} cy={10} r={8} fill="#065f46" stroke="#022c22" strokeWidth={0.75} />
+          <circle cx={8} cy={10} r={8} fill="#047857" stroke="#022c22" strokeWidth={0.75} />
         </g>
       )}
 
@@ -107,7 +134,7 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         </g>
       )}
 
-      {/* Edge Treelines: Rich 3D green sphere clusters of varying shades */}
+      {/* Edge Treelines: Neat 3D green sphere clusters */}
       {tile.edges.map((edge, idx) => {
         if (edge !== 'treeline') return null;
         const { p1, p2 } = getHexEdgeEndpoints(corners, idx as any);
@@ -118,7 +145,7 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         const nx = -dy / (len || 1);
         const ny = dx / (len || 1);
 
-        const numBushes = 7;
+        const numBushes = 4;
         const bushNodes = [];
 
         for (let i = 0; i <= numBushes; i++) {
@@ -126,28 +153,22 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
           const cx = p1.x + t * dx;
           const cy = p1.y + t * dy;
 
-          const offsetDist = Math.sin(t * Math.PI) * 2;
+          const offsetDist = Math.sin(t * Math.PI) * 1.5;
           const bx = cx + nx * offsetDist;
           const by = cy + ny * offsetDist;
 
-          const r1 = 4.5 + (i % 3) * 1.2;
-          const r2 = 3.5 + ((i + 1) % 3) * 1.1;
-
-          const colors = ['#047857', '#059669', '#10b981', '#34d399', '#065f46'];
+          const r1 = 4.0 + (i % 2) * 1.0;
+          const colors = ['#047857', '#059669', '#10b981', '#065f46'];
           const c1 = colors[i % colors.length];
-          const c2 = colors[(i + 2) % colors.length];
 
           bushNodes.push(
-            <g key={i}>
-              <circle cx={bx - 1.5} cy={by - 1.5} r={r1} fill={c1} stroke="#022c22" strokeWidth={0.5} opacity={0.95} />
-              <circle cx={bx + 1.5} cy={by + 1} r={r2} fill={c2} stroke="#022c22" strokeWidth={0.5} opacity={0.9} />
-            </g>
+            <circle key={i} cx={bx} cy={by} r={r1} fill={c1} stroke="#022c22" strokeWidth={0.5} opacity={0.95} />
           );
         }
 
         return (
           <g key={idx}>
-            <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#022c22" strokeWidth={8} strokeLinecap="round" opacity={0.8} />
+            <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#022c22" strokeWidth={7} strokeLinecap="round" opacity={0.8} />
             {bushNodes}
           </g>
         );
@@ -160,10 +181,10 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
           <text x={0} y={4} textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="bold">
             {tile.blackSpawnNumber}
           </text>
-          {/* Facing Arrow Indicator */}
+          {/* Facing Arrow Indicator pointing to edge */}
           {tile.blackSpawnFacing !== undefined && (
             <g transform={`rotate(${getFacingAngleDegrees(tile.blackSpawnFacing)})`}>
-              <polygon points="0,-16 -4,-11 4,-11" fill="#facc15" stroke="#000000" strokeWidth={0.5} />
+              <polygon points="16,0 11,-4 11,4" fill="#facc15" stroke="#000000" strokeWidth={0.5} />
             </g>
           )}
         </g>
