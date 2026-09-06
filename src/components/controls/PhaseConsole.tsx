@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { TurnPhase } from '../../types/game';
-import { calculateShermanDicePool } from '../../core/rules/missionLoader';
+import { calculateSectionDice, getAvailableDoubles } from '../../core/rules/shermanOperations';
+import { hexDistance } from '../../core/hex/math';
 
 export const PhaseConsole: React.FC = () => {
   const {
     boardState,
     setPhase,
     addLogMessage,
-    moveShermanForward,
-    rotateSherman,
-    loadCannon,
-    fireMainGunAt,
-    toggleSmoke,
-    toggleHullDown,
-    extinguishFire,
     rescueCrew,
+    selectOperationsOrder,
+    rollSectionDice,
+    executeManeuverForward,
+    executeManeuverReverse,
+    executeManeuverTurn,
+    executeAttackLoad,
+    executeAttackFireGun,
+    executeAttackFireMG,
+    executeMiscAction,
+    advanceSection,
     runPhase1,
     runPhase4,
     runPhase5,
@@ -23,8 +27,7 @@ export const PhaseConsole: React.FC = () => {
     runPhase7EndTurn,
   } = useGameStore();
 
-  const [rolledDice, setRolledDice] = useState<number[]>([]);
-  const [executionOrder, setExecutionOrder] = useState<'MAV' | 'AMV'>('MAV');
+
 
   if (!boardState) return null;
   const currentPhase = boardState.currentPhase;
@@ -44,23 +47,6 @@ export const PhaseConsole: React.FC = () => {
   const shermanTileKey = `${sherman.coord.q},${sherman.coord.r}`;
   const currentTile = boardState.tiles.get(shermanTileKey);
   const currentTerrain = currentTile?.terrain || 'field';
-
-  // Calculate dice pool
-  const dicePoolConfig = boardState.missionData?.shermanDicePool;
-  const dicePool = dicePoolConfig
-    ? calculateShermanDicePool(currentTerrain, dicePoolConfig)
-    : { maneuver: 1, attack: 2, misc: 2, total: 5 };
-
-  const handleRollDice = () => {
-    const diceCount = dicePool.total;
-    const rolls: number[] = [];
-    for (let i = 0; i < diceCount; i++) {
-      rolls.push(Math.floor(Math.random() * 6) + 1);
-    }
-    rolls.sort((a, b) => a - b);
-    setRolledDice(rolls);
-    addLogMessage(`🎲 Tirada de dados Sherman en ${currentTerrain.toUpperCase()}: [${rolls.join(', ')}]`);
-  };
 
   const nextPhase = () => {
     const next = currentPhase >= 7 ? 1 : ((currentPhase + 1) as TurnPhase);
@@ -154,142 +140,488 @@ export const PhaseConsole: React.FC = () => {
       {/* Phase 3: Sherman Operations & Action Buttons */}
       {currentPhase === TurnPhase.SHERMAN_OPERATIONS && (
         <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400">Orden de Ejecución:</span>
-              <button
-                onClick={() => setExecutionOrder('MAV')}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition ${
-                  executionOrder === 'MAV' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'
-                }`}
-              >
-                [Maniobra ➔ Ataque ➔ Varios]
-              </button>
-              <button
-                onClick={() => setExecutionOrder('AMV')}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition ${
-                  executionOrder === 'AMV' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'
-                }`}
-              >
-                [Ataque ➔ Maniobra ➔ Varios]
-              </button>
+          {/* If no order chosen yet */}
+          {(!boardState.shermanOperations?.order || boardState.shermanOperations?.status === 'order_selection') && (
+            <div className="space-y-3">
+              <div className="border-b border-slate-800 pb-2">
+                <h3 className="text-sm font-bold text-amber-400">
+                  Fase 3: Operaciones del Sherman - Elección del Orden de Secciones
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  El tipo de terreno inicial ({boardState.shermanOperations?.phaseStartTerrain?.toUpperCase() || currentTerrain.toUpperCase()}) determina la reserva de dados para todas las secciones. Selecciona el orden de activación para este turno:
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => selectOperationsOrder('MAV')}
+                  className="min-h-[52px] p-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition shadow-md flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-sm font-extrabold">1. MANIOBRA ➔ 2. ATAQUE ➔ 3. VARIOS</span>
+                  <span className="text-[10px] text-amber-100 font-normal">Mover primero para posicionar el tanque o buscar cobertura</span>
+                </button>
+                <button
+                  onClick={() => selectOperationsOrder('AMV')}
+                  className="min-h-[52px] p-3 bg-red-700 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition shadow-md flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-sm font-extrabold">1. ATAQUE ➔ 2. MANIOBRA ➔ 3. VARIOS</span>
+                  <span className="text-[10px] text-red-100 font-normal">Disparar antes de mover o cambiar encaramiento</span>
+                </button>
+              </div>
             </div>
+          )}
 
-            <span className="text-slate-300 font-mono">
-              Pool: {dicePool.maneuver}M / {dicePool.attack}A / {dicePool.misc}V ({dicePool.total} dados)
-            </span>
-          </div>
+          {/* If order is chosen, show active section */}
+          {boardState.shermanOperations?.order && boardState.shermanOperations?.status !== 'order_selection' && (
+            <div className="space-y-4">
+              {/* Section progress tabs */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-xs">
+                <div className="flex gap-2 font-mono">
+                  {(boardState.shermanOperations.order === 'MAV'
+                    ? [
+                        { key: 'maneuver', label: '1. Maniobra' },
+                        { key: 'attack', label: '2. Ataque' },
+                        { key: 'misc', label: '3. Varios' },
+                      ]
+                    : [
+                        { key: 'attack', label: '1. Ataque' },
+                        { key: 'maneuver', label: '2. Maniobra' },
+                        { key: 'misc', label: '3. Varios' },
+                      ]
+                  ).map((sec, idx) => {
+                    const isCurrent = boardState.shermanOperations?.sectionIndex === idx;
+                    const isPast = (boardState.shermanOperations?.sectionIndex ?? 0) > idx;
+                    return (
+                      <span
+                        key={sec.key}
+                        className={`px-2.5 py-1 rounded-md font-bold ${
+                          isCurrent
+                            ? 'bg-amber-500 text-slate-950 font-extrabold shadow'
+                            : isPast
+                            ? 'bg-slate-800 text-slate-400 line-through'
+                            : 'bg-slate-900 text-slate-500'
+                        }`}
+                      >
+                        {sec.label}
+                      </span>
+                    );
+                  })}
+                </div>
+                <span className="text-slate-400 text-[11px]">
+                  Terreno Inicial: <strong className="text-amber-400 uppercase">{boardState.shermanOperations.phaseStartTerrain}</strong>
+                </span>
+              </div>
 
-          {/* Dice Rolling & Result Badges */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleRollDice}
-              className="min-h-[48px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2"
-            >
-              🎲 Tirar Reserva d6
-            </button>
-
-            {rolledDice.length > 0 && (
-              <div className="flex gap-2">
-                {rolledDice.map((val, idx) => (
-                  <span
-                    key={idx}
-                    className="w-9 h-9 bg-slate-800 border-2 border-amber-500 rounded-xl text-amber-400 font-bold text-base flex items-center justify-center shadow"
+              {/* If Phase Completed */}
+              {boardState.shermanOperations.status === 'phase_completed' && (
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center space-y-3">
+                  <div className="text-emerald-400 font-bold text-sm">
+                    ✅ ¡Todas las Secciones de Operaciones del Sherman han concluido!
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Puedes avanzar a la siguiente fase del turno (Fase 4: Limpieza de Humo Alemán).
+                  </p>
+                  <button
+                    onClick={nextPhase}
+                    className="min-h-[48px] px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
                   >
-                    {val}
-                  </span>
-                ))}
+                    Avanzar a Fase 4 (Humo Alemán) ➔
+                  </button>
+                </div>
+              )}
+
+              {/* Active Section Execution */}
+              {boardState.shermanOperations.currentSection && boardState.shermanOperations.status !== 'phase_completed' && (
+                (() => {
+                  const section = boardState.shermanOperations.currentSection;
+                  const diceInfo = calculateSectionDice(
+                    section,
+                    boardState.shermanOperations.phaseStartTerrain,
+                    sherman
+                  );
+                  const availableDice = boardState.shermanOperations.availableDice;
+                  const rolledDice = boardState.shermanOperations.rolledDice;
+                  const hasRolled = boardState.shermanOperations.status === 'rolled';
+                  const isImmobilizedSection = diceInfo.isImmobilized;
+                  const doubles = getAvailableDoubles(section, availableDice, sherman);
+
+                  // Count individual dice values
+                  const countOf = (val: number) => availableDice.filter((d) => d === val).length;
+
+                  // Target finders
+                  const activeTanks = boardState.enemyTanks.filter((t) => t.status !== 'destroyed');
+                  const adjacentInfantry = boardState.enemyInfantry.filter(
+                    (inf) => inf.status !== 'eliminated' && hexDistance(sherman.coord, inf.coord) === 1
+                  );
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Section Info Banner */}
+                      <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h4 className="text-sm font-bold text-amber-400">
+                            {section === 'maneuver'
+                              ? '🚗 SECCIÓN: MANIOBRA'
+                              : section === 'attack'
+                              ? '🎯 SECCIÓN: ATAQUE'
+                              : '⚙️ SECCIÓN: VARIOS'}
+                          </h4>
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            {diceInfo.explanation.join(' | ')}
+                          </div>
+                        </div>
+
+                        {!hasRolled && !isImmobilizedSection && (
+                          <button
+                            onClick={() => rollSectionDice()}
+                            className="min-h-[48px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2"
+                          >
+                            🎲 Tirar {diceInfo.totalDice} Dados d6
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Immobilized Warning in Maneuver */}
+                      {isImmobilizedSection && (
+                        <div className="bg-amber-950/60 border border-amber-800 p-4 rounded-xl text-amber-300 text-xs space-y-2">
+                          <p className="font-bold">⚠️ El Sherman se encuentra Inmovilizado.</p>
+                          <p>Las reglas establecen que se debe saltar la sección de Maniobra si el tanque está inmovilizado.</p>
+                          <button
+                            onClick={advanceSection}
+                            className="min-h-[44px] px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition"
+                          >
+                            Saltar Maniobra y Continuar ➔
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Dice Tray (once rolled) */}
+                      {hasRolled && (
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-400 font-semibold uppercase tracking-wider">
+                              Dados Disponibles ({availableDice.length} restantes de {rolledDice.length}):
+                            </span>
+                            {availableDice.length === 0 && (
+                              <span className="text-emerald-400 font-bold">¡Todos los dados han sido utilizados!</span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 items-center">
+                            {rolledDice.map((val, idx) => {
+                              const isSpent = !availableDice.includes(val);
+                              let actionLabel = '';
+                              if (section === 'maneuver') {
+                                if (val === 1) actionLabel = 'Retroceder';
+                                else if (val <= 4) actionLabel = 'Girar';
+                                else actionLabel = 'Mover';
+                              } else if (section === 'attack') {
+                                if (val <= 2) actionLabel = 'Cargar';
+                                else if (val <= 4) actionLabel = 'MG Inf';
+                                else actionLabel = 'Cañón';
+                              } else if (section === 'misc') {
+                                if (val === 1) actionLabel = 'DCP/Carga';
+                                else if (val === 2) actionLabel = 'MG';
+                                else if (val === 3) actionLabel = 'Giro/Mover';
+                                else if (val === 4) actionLabel = 'Reparar';
+                                else if (val === 5) actionLabel = 'Humo/Rep';
+                                else if (val === 6) actionLabel = 'Extinguir';
+                              }
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl border-2 transition ${
+                                    isSpent
+                                      ? 'bg-slate-950 border-slate-800 text-slate-600 opacity-40'
+                                      : 'bg-slate-800 border-amber-500 text-amber-400 shadow-md'
+                                  }`}
+                                >
+                                  <span className="text-lg font-extrabold leading-none">{val}</span>
+                                  <span className="text-[9px] font-bold text-slate-300 mt-1 uppercase tracking-tighter text-center line-clamp-1">
+                                    {actionLabel}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Doubles Panel if available */}
+                          {doubles.length > 0 && (
+                            <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                                ⚡ Opciones de Dobles Disponibles (descartan 2 dados iguales):
+                              </span>
+                              <div className="flex flex-wrap gap-2">
+                                {doubles.map((dOpt, dIdx) => (
+                                  <button
+                                    key={dIdx}
+                                    disabled={!dOpt.allowed}
+                                    onClick={() => {
+                                      if (dOpt.actionKey === 'double_move') {
+                                        executeManeuverForward({ type: 'double', value: dOpt.value });
+                                      } else if (dOpt.actionKey === 'double_turn') {
+                                        executeManeuverTurn(1, { type: 'double', value: dOpt.value });
+                                      } else if (dOpt.actionKey === 'double_load') {
+                                        executeAttackLoad({ type: 'double', value: dOpt.value });
+                                      } else if (dOpt.actionKey === 'double_dcp') {
+                                        if (activeTanks[0]) {
+                                          executeAttackFireGun(activeTanks[0], { type: 'double', value: dOpt.value });
+                                        }
+                                      } else if (dOpt.actionKey === 'double_hull_down') {
+                                        executeMiscAction('hull_down', { type: 'double', value: dOpt.value });
+                                      }
+                                    }}
+                                    className="min-h-[40px] px-3 py-1.5 bg-amber-950 hover:bg-amber-900 border border-amber-700 disabled:opacity-40 text-amber-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow"
+                                    title={dOpt.requirementText}
+                                  >
+                                    <span>{dOpt.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tactical Action Buttons for MANEUVER */}
+                      {hasRolled && section === 'maneuver' && (
+                        <div className="space-y-2">
+                          <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            Acciones de Maniobra
+                          </h5>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <button
+                              onClick={() => executeManeuverForward()}
+                              disabled={sherman.isImmobilized || (!availableDice.includes(5) && !availableDice.includes(6))}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🚗 Avanzar 1 Hex</span>
+                              <span className="text-[10px] text-amber-400 font-normal">
+                                Dado 5 o 6 ({countOf(5) + countOf(6)} disp.)
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => executeManeuverReverse()}
+                              disabled={sherman.isImmobilized || !availableDice.includes(1)}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🔙 Retroceder 1 Hex</span>
+                              <span className="text-[10px] text-amber-400 font-normal">
+                                Dado 1 ({countOf(1)} disp.)
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => executeManeuverTurn(-1)}
+                              disabled={!availableDice.includes(2) && !availableDice.includes(3) && !availableDice.includes(4)}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>↺ Girar Izq (-60°)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">
+                                Dado 2, 3 o 4 ({countOf(2) + countOf(3) + countOf(4)} disp.)
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => executeManeuverTurn(1)}
+                              disabled={!availableDice.includes(2) && !availableDice.includes(3) && !availableDice.includes(4)}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>↻ Girar Der (+60°)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">
+                                Dado 2, 3 o 4 ({countOf(2) + countOf(3) + countOf(4)} disp.)
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tactical Action Buttons for ATTACK */}
+                      {hasRolled && section === 'attack' && (
+                        <div className="space-y-2">
+                          <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            Acciones de Ataque
+                          </h5>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <button
+                              onClick={() => executeAttackLoad()}
+                              disabled={sherman.isLoaded || (!availableDice.includes(1) && !availableDice.includes(2))}
+                              className="min-h-[48px] p-2.5 bg-amber-950 hover:bg-amber-900 border border-amber-800 disabled:opacity-40 text-amber-400 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>⚡ Cargar Cañón</span>
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                Dado 1 o 2 ({countOf(1) + countOf(2)} disp.) {sherman.isLoaded ? '(Ya cargado)' : ''}
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (activeTanks[0]) executeAttackFireGun(activeTanks[0]);
+                              }}
+                              disabled={!sherman.isLoaded || sherman.isTurretDamaged || (!availableDice.includes(5) && !availableDice.includes(6))}
+                              className="min-h-[48px] p-2.5 bg-red-950 hover:bg-red-900 border border-red-800 disabled:opacity-40 text-red-400 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🎯 Disparar Cañón Principal</span>
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                Dado 5 o 6 ({countOf(5) + countOf(6)} disp.) {sherman.isTurretDamaged ? '(Torreta averiada)' : !sherman.isLoaded ? '(Descargado)' : ''}
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (adjacentInfantry[0]) executeAttackFireMG(adjacentInfantry[0]);
+                              }}
+                              disabled={adjacentInfantry.length === 0 || (!availableDice.includes(3) && !availableDice.includes(4))}
+                              className="min-h-[48px] p-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🔫 Disparar MG (7+ Infantería)</span>
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                Dado 3 o 4 ({countOf(3) + countOf(4)} disp.) {adjacentInfantry.length === 0 ? '(Sin inf. adyacente)' : ''}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tactical Action Buttons for MISC */}
+                      {hasRolled && section === 'misc' && (
+                        <div className="space-y-2">
+                          <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            Acciones de Varios
+                          </h5>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            {/* Die 1 options */}
+                            <button
+                              onClick={() => executeMiscAction('load', { type: 'single', value: 1 })}
+                              disabled={!availableDice.includes(1) || sherman.isLoaded || sherman.crew.loader.status !== 'active'}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>⚡ Cargar (Cargador)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">Dado 1 ({countOf(1)} disp.)</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (activeTanks[0]) {
+                                  executeMiscAction('dcp', { type: 'single', value: 1 }, { targetTank: activeTanks[0] });
+                                }
+                              }}
+                              disabled={!availableDice.includes(1) || !sherman.isLoaded || sherman.isTurretDamaged || sherman.crew.gunner.status !== 'active'}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🎯 DCP (Artillero)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">Dado 1 ({countOf(1)} disp.)</span>
+                            </button>
+
+                            {/* Die 2: MG */}
+                            <button
+                              onClick={() => {
+                                if (adjacentInfantry[0]) {
+                                  executeMiscAction('mg', { type: 'single', value: 2 }, { targetInfantry: adjacentInfantry[0] });
+                                }
+                              }}
+                              disabled={!availableDice.includes(2) || adjacentInfantry.length === 0 || sherman.crew.assistant.status !== 'active'}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🔫 MG (Asistente 7+)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">Dado 2 ({countOf(2)} disp.)</span>
+                            </button>
+
+                            {/* Die 3: Move or Turn */}
+                            <button
+                              onClick={() => executeMiscAction('move', { type: 'single', value: 3 })}
+                              disabled={!availableDice.includes(3) || sherman.isImmobilized || sherman.crew.driver.status !== 'active'}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🚗 Mover (Conductor)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">Dado 3 ({countOf(3)} disp.)</span>
+                            </button>
+
+                            <button
+                              onClick={() => executeMiscAction('turn', { type: 'single', value: 3 }, { turnDelta: 1 })}
+                              disabled={!availableDice.includes(3) || sherman.crew.driver.status !== 'active'}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🔄 Girar (Conductor)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">Dado 3 ({countOf(3)} disp.)</span>
+                            </button>
+
+                            {/* Die 4 or 5: Repair */}
+                            <button
+                              onClick={() => {
+                                const valToUse = availableDice.includes(4) ? 4 : 5;
+                                executeMiscAction('repair', { type: 'single', value: valToUse });
+                              }}
+                              disabled={(!availableDice.includes(4) && !availableDice.includes(5)) || (!sherman.isTurretDamaged && !sherman.isImmobilized)}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>🔧 Reparar Daño</span>
+                              <span className="text-[10px] text-amber-400 font-normal">
+                                Dado 4 o 5 ({countOf(4) + countOf(5)} disp.)
+                              </span>
+                            </button>
+
+                            {/* Die 5: Smoke */}
+                            <button
+                              onClick={() => executeMiscAction('smoke', { type: 'single', value: 5 })}
+                              disabled={!availableDice.includes(5) || sherman.hasSmoke}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>💨 Humo Pantalla</span>
+                              <span className="text-[10px] text-amber-400 font-normal">Dado 5 ({countOf(5)} disp.)</span>
+                            </button>
+
+                              {/* Die 6: Extinguish */}
+                              <button
+                                onClick={() => executeMiscAction('extinguish', { type: 'single', value: 6 })}
+                                disabled={!availableDice.includes(6) || sherman.fireLevel <= 0}
+                                className="min-h-[48px] p-2 bg-red-950 hover:bg-red-900 border border-red-800 disabled:opacity-40 text-red-200 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                              >
+                                <span>🧯 Extinguir Fuego</span>
+                                <span className="text-[10px] text-amber-400 font-normal">Dado 6 ({countOf(6)} disp.)</span>
+                              </button>
+
+                              {boardState.missionData?.specialRules?.disabledSherman && (
+                                <button
+                                  onClick={rescueCrew}
+                                  disabled={
+                                    boardState.missionData.specialRules.disabledSherman.rescued ||
+                                    sherman.coord.q !== boardState.missionData.specialRules.disabledSherman.hex.q ||
+                                    sherman.coord.r !== boardState.missionData.specialRules.disabledSherman.hex.r
+                                  }
+                                  className="min-h-[48px] p-2 bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 disabled:opacity-50 text-emerald-300 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                                >
+                                  <span>🛟 Rescatar Sherman</span>
+                                  <span className="text-[10px] text-emerald-400 font-normal">Objetivo Misión</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Advance / Finish Section Button */}
+                        {hasRolled && (
+                          <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                            <span className="text-[11px] text-slate-500">
+                              Puedes finalizar en cualquier momento si no deseas usar más dados.
+                            </span>
+                            <button
+                              onClick={advanceSection}
+                              className="min-h-[44px] px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow transition"
+                            >
+                              Finalizar {section === 'maneuver' ? 'Maniobra' : section === 'attack' ? 'Ataque' : 'Varios'} y Continuar ➔
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
               </div>
             )}
           </div>
-
-          {/* Tactical Action Buttons Panel */}
-          <div>
-            <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">Acciones Tácticas Sherman</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              <button
-                onClick={moveShermanForward}
-                disabled={sherman.isImmobilized}
-                className="min-h-[48px] p-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-100 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
-              >
-                🚗 Avanzar 1 Hex
-              </button>
-
-              <button
-                onClick={() => rotateSherman(-1)}
-                className="min-h-[48px] p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
-              >
-                ↺ Girar Izq (-60°)
-              </button>
-
-              <button
-                onClick={() => rotateSherman(1)}
-                className="min-h-[48px] p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
-              >
-                ↻ Girar Der (+60°)
-              </button>
-
-              <button
-                onClick={loadCannon}
-                disabled={sherman.isLoaded}
-                className="min-h-[48px] p-2.5 bg-amber-950 hover:bg-amber-900 border border-amber-800 disabled:opacity-50 text-amber-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
-              >
-                ⚡ Cargar Cañón
-              </button>
-
-              {boardState.enemyTanks.length > 0 && (
-                <button
-                  onClick={() => {
-                    const activeEnemy = boardState.enemyTanks.find((t) => t.status !== 'destroyed');
-                    if (activeEnemy) fireMainGunAt(activeEnemy);
-                  }}
-                  disabled={!sherman.isLoaded}
-                  className="min-h-[48px] p-2.5 bg-red-950 hover:bg-red-900 border border-red-800 disabled:opacity-50 text-red-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 col-span-2 sm:col-span-1"
-                >
-                  🎯 Disparar Cañón
-                </button>
-              )}
-
-              <button
-                onClick={toggleSmoke}
-                className="min-h-[48px] p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition"
-              >
-                💨 Humo
-              </button>
-
-              <button
-                onClick={toggleHullDown}
-                className="min-h-[48px] p-2.5 bg-blue-950 hover:bg-blue-900 border border-blue-800 text-blue-400 rounded-xl text-xs font-bold transition"
-              >
-                🛡️ Desenfilada
-              </button>
-
-              {sherman.fireLevel > 0 && (
-                <button
-                  onClick={extinguishFire}
-                  className="min-h-[48px] p-2.5 bg-red-950 hover:bg-red-900 border border-red-700 text-red-100 rounded-xl text-xs font-bold transition col-span-2 sm:col-span-1"
-                >
-                  🧯 Extinguir Fuego
-                </button>
-              )}
-
-              {boardState.missionData?.specialRules?.disabledSherman && (
-                <button
-                  onClick={rescueCrew}
-                  disabled={
-                    boardState.missionData.specialRules.disabledSherman.rescued ||
-                    sherman.coord.q !== boardState.missionData.specialRules.disabledSherman.hex.q ||
-                    sherman.coord.r !== boardState.missionData.specialRules.disabledSherman.hex.r
-                  }
-                  className="min-h-[48px] p-2.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 disabled:opacity-50 text-emerald-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 col-span-2 sm:col-span-1"
-                >
-                  🛟 Rescatar Tripulación
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
 
       {/* Phase 4: German Smoke Cleanup */}
       {currentPhase === TurnPhase.GERMAN_SMOKE_CLEANUP && (

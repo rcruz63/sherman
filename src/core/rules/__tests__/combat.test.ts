@@ -3,6 +3,7 @@ import {
   calculateHitDifficulty,
   resolveDamageCheck,
   resolveDamageEffect,
+  resolveCrewCasualtyRoll,
 } from '../combat';
 import { BoardState, HexTile } from '../../../types/game';
 
@@ -123,39 +124,56 @@ describe('Combat Rules Engine', () => {
   });
 
   describe('resolveDamageCheck', () => {
-    it('resolves NO_EFFECT when attack fails to reach armor value', () => {
+    it('resolves NO_EFFECT when 1d6 is below (targetArmor - attackerPen)', () => {
+      // 10 armor, 7 pen -> threshold is 3
       const result = resolveDamageCheck(7, 10, 2);
       expect(result.result).toBe('NO_EFFECT');
-      expect(result.totalAttack).toBe(9);
+      expect(result.threshold).toBe(3);
+      expect(result.roll).toBe(2);
     });
 
-    it('resolves DAMAGED when attack equals or slightly exceeds armor value', () => {
-      const result = resolveDamageCheck(7, 10, 3);
-      expect(result.result).toBe('DAMAGED');
-      expect(result.totalAttack).toBe(10);
-    });
+    it('resolves DAMAGED when 1d6 meets or exceeds threshold', () => {
+      const resultEqual = resolveDamageCheck(7, 10, 3);
+      expect(resultEqual.result).toBe('DAMAGED');
+      expect(resultEqual.threshold).toBe(3);
 
-    it('resolves DESTROYED when attack exceeds armor value by at least 3', () => {
-      const result = resolveDamageCheck(7, 10, 6);
-      expect(result.result).toBe('DESTROYED');
-      expect(result.totalAttack).toBe(13);
+      const resultExceed = resolveDamageCheck(7, 10, 6);
+      expect(resultExceed.result).toBe('DAMAGED');
     });
   });
 
   describe('resolveDamageEffect', () => {
-    it('resolves damage effects for German tanks correctly', () => {
-      expect(resolveDamageEffect('germanTank', 2).outcome).toBe('DAMAGED_GUN');
-      expect(resolveDamageEffect('germanTank', 5).outcome).toBe('IMMOBILIZED');
-      expect(resolveDamageEffect('germanTank', 7).outcome).toBe('CREW_CASUALTY');
-      expect(resolveDamageEffect('germanTank', 10).outcome).toBe('DESTROYED');
+    it('resolves damage effects for German tanks correctly (1d6)', () => {
+      expect(resolveDamageEffect('germanTank', 1).outcome).toBe('DAMAGED');
+      expect(resolveDamageEffect('germanTank', 2).outcome).toBe('DAMAGED');
+      expect(resolveDamageEffect('germanTank', 3).outcome).toBe('TURRET_DAMAGED');
+      expect(resolveDamageEffect('germanTank', 4).outcome).toBe('TURRET_DAMAGED');
+      expect(resolveDamageEffect('germanTank', 5).outcome).toBe('DESTROYED');
+      expect(resolveDamageEffect('germanTank', 6).outcome).toBe('DESTROYED');
     });
 
-    it('resolves damage effects for Sherman tank correctly', () => {
-      expect(resolveDamageEffect('sherman', 2).outcome).toBe('TURRET_DAMAGED');
+    it('resolves damage effects for Sherman tank correctly (1d6)', () => {
+      expect(resolveDamageEffect('sherman', 1).outcome).toBe('DESTROYED');
+      expect(resolveDamageEffect('sherman', 2).outcome).toBe('CREW_CASUALTY');
+      expect(resolveDamageEffect('sherman', 3).outcome).toBe('DAMAGED_FIRE');
+      expect(resolveDamageEffect('sherman', 4).outcome).toBe('DAMAGED_FIRE');
       expect(resolveDamageEffect('sherman', 5).outcome).toBe('IMMOBILIZED');
-      expect(resolveDamageEffect('sherman', 7).outcome).toBe('CREW_CASUALTY');
-      expect(resolveDamageEffect('sherman', 9).outcome).toBe('FIRE_STARTED');
-      expect(resolveDamageEffect('sherman', 11).outcome).toBe('DESTROYED');
+      expect(resolveDamageEffect('sherman', 6).outcome).toBe('CREW_CASUALTY');
+    });
+  });
+
+  describe('resolveCrewCasualtyRoll', () => {
+    it('resolves roles 1-5 correctly regardless of hatch position', () => {
+      expect(resolveCrewCasualtyRoll(1, false)?.role).toBe('commander');
+      expect(resolveCrewCasualtyRoll(2, false)?.role).toBe('loader');
+      expect(resolveCrewCasualtyRoll(3, false)?.role).toBe('gunner');
+      expect(resolveCrewCasualtyRoll(4, false)?.role).toBe('driver');
+      expect(resolveCrewCasualtyRoll(5, false)?.role).toBe('assistant');
+    });
+
+    it('resolves roll 6: casualty only if commander is hatched', () => {
+      expect(resolveCrewCasualtyRoll(6, true)?.role).toBe('commander');
+      expect(resolveCrewCasualtyRoll(6, false)).toBeNull();
     });
   });
 });

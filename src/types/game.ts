@@ -329,6 +329,19 @@ export interface Mission extends MissionJSON {
   initialEnemies: EnemyUnit[];
 }
 
+export type ShermanSectionType = 'maneuver' | 'attack' | 'misc';
+export type ShermanOperationsOrder = 'MAV' | 'AMV';
+
+export interface ShermanOperationsState {
+  order: ShermanOperationsOrder | null;
+  sectionIndex: number; // 0 (1st section), 1 (2nd section), 2 (3rd section / Varios), 3 (all done)
+  phaseStartTerrain: TerrainType;
+  currentSection: ShermanSectionType | null;
+  status: 'order_selection' | 'not_rolled' | 'rolled' | 'section_completed' | 'phase_completed';
+  rolledDice: number[];
+  availableDice: number[];
+}
+
 export interface BoardState {
   tiles: Map<string, BoardHex>;
   sherman: ShermanState;
@@ -338,6 +351,7 @@ export interface BoardState {
   currentTurn: number;
   currentPhase: TurnPhase;
   missionData?: MissionJSON;
+  shermanOperations?: ShermanOperationsState;
 }
 
 export type LogVerbosityMode = 'compact' | 'detailed';

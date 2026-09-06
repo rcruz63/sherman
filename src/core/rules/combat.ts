@@ -111,72 +111,136 @@ export interface DamageCheckResult {
   attackerPen: number;
   targetArmor: number;
   roll: number;
-  totalAttack: number;
+  threshold: number;
+  totalAttack?: number; // legacy backwards-compat
   result: DamageResultType;
   detail: string;
 }
 
 /**
- * Resolves penetration vs armor check.
- * Effective Attack = Attacker PEN + Roll (2d6).
- * - Total < Target Armor -> NO_EFFECT (Bounce / Sin penetración)
- * - Total >= Target Armor and Total < Target Armor + 3 -> DAMAGED
- * - Total >= Target Armor + 3 -> DESTROYED
+ * Resolves penetration vs armor check (Paso 2: ¿DAÑOS?).
+ * Roll 1d6: Requires 1d6 >= Target Armor - Attacker PEN.
  */
 export function resolveDamageCheck(
   attackerPen: number,
   targetArmor: number,
   roll: number
 ): DamageCheckResult {
-  const totalAttack = attackerPen + roll;
+  const threshold = targetArmor - attackerPen;
+  const isDamage = roll >= threshold;
 
-  if (totalAttack < targetArmor) {
+  if (!isDamage) {
     return {
       attackerPen,
       targetArmor,
       roll,
-      totalAttack,
+      threshold,
+      totalAttack: attackerPen + roll,
       result: 'NO_EFFECT',
-      detail: `PEN ${attackerPen} + Tirada ${roll} = ${totalAttack} vs Blindaje ${targetArmor}: Sin Penetración`,
-    };
-  } else if (totalAttack < targetArmor + 3) {
-    return {
-      attackerPen,
-      targetArmor,
-      roll,
-      totalAttack,
-      result: 'DAMAGED',
-      detail: `PEN ${attackerPen} + Tirada ${roll} = ${totalAttack} vs Blindaje ${targetArmor}: Objetivo Dañado`,
+      detail: `Tirada 1d6 [${roll}] < Blindaje ${targetArmor} - PEN ${attackerPen} (Req ${threshold}): Sin Penetración`,
     };
   } else {
     return {
       attackerPen,
       targetArmor,
       roll,
-      totalAttack,
-      result: 'DESTROYED',
-      detail: `PEN ${attackerPen} + Tirada ${roll} = ${totalAttack} vs Blindaje ${targetArmor}: Objetivo Destruido`,
+      threshold,
+      totalAttack: attackerPen + roll,
+      result: 'DAMAGED',
+      detail: `Tirada 1d6 [${roll}] >= Blindaje ${targetArmor} - PEN ${attackerPen} (Req ${threshold}): ¡CAUSA DAÑO!`,
     };
   }
 }
 
+export type DamageEffectOutcome =
+  | 'DAMAGED'
+  | 'TURRET_DAMAGED'
+  | 'DESTROYED'
+  | 'DAMAGED_FIRE'
+  | 'IMMOBILIZED'
+  | 'CREW_CASUALTY';
+
+export interface DamageEffectResult {
+  outcome: DamageEffectOutcome;
+  description: string;
+}
+
 /**
- * Resolves specific damage tables (e.g., German damage or Sherman damage effect tables).
+ * Resolves specific damage tables (Paso 3: ¿Qué Daños?, tirada 1d6).
+ * Official rules:
+ * German:
+ * - 1-2: Dañado > Destruido
+ * - 3-4: Torreta dañada
+ * - 5-6: Destruido
+ * Sherman:
+ * - 1: Destruido
+ * - 2: Comprueba KIA
+ * - 3-4: Dañado > ¡Fuego! +1 Nivel de fuego
+ * - 5: Inmovilizado
+ * - 6: Comprueba KIA
  */
 export function resolveDamageEffect(
   targetType: 'germanTank' | 'sherman',
   roll: number
-): { outcome: string; description: string } {
+): DamageEffectResult {
   if (targetType === 'germanTank') {
-    if (roll <= 3) return { outcome: 'DAMAGED_GUN', description: 'Cañón Dañado (-1 a dados de IA)' };
-    if (roll <= 5) return { outcome: 'IMMOBILIZED', description: 'Inmovilizado' };
-    if (roll <= 8) return { outcome: 'CREW_CASUALTY', description: 'Baja en Tripulación' };
+    if (roll <= 2) {
+      return { outcome: 'DAMAGED', description: 'Dañado (si ya estaba dañado > Destruido)' };
+    }
+    if (roll <= 4) {
+      return { outcome: 'TURRET_DAMAGED', description: 'Torreta Dañada' };
+    }
     return { outcome: 'DESTROYED', description: 'Tanque Destruido' };
   } else {
-    if (roll <= 3) return { outcome: 'TURRET_DAMAGED', description: 'Torreta Dañada' };
-    if (roll <= 5) return { outcome: 'IMMOBILIZED', description: 'Inmovilizado' };
-    if (roll <= 7) return { outcome: 'CREW_CASUALTY', description: 'Baja de Tripulante' };
-    if (roll <= 9) return { outcome: 'FIRE_STARTED', description: 'Fuego iniciado (+1 Nivel de Fuego)' };
-    return { outcome: 'DESTROYED', description: 'Sherman Destruido' };
+    if (roll === 1) {
+      return { outcome: 'DESTROYED', description: 'Sherman Destruido' };
+    }
+    if (roll === 2) {
+      return { outcome: 'CREW_CASUALTY', description: 'Comprueba KIA' };
+    }
+    if (roll <= 4) {
+      return { outcome: 'DAMAGED_FIRE', description: 'Dañado > ¡Fuego! (+1 Nivel de fuego)' };
+    }
+    if (roll === 5) {
+      return { outcome: 'IMMOBILIZED', description: 'Inmovilizado' };
+    }
+    return { outcome: 'CREW_CASUALTY', description: 'Comprueba KIA' };
   }
+}
+
+export const CREW_ROLES_ORDER: ('commander' | 'loader' | 'gunner' | 'driver' | 'assistant')[] = [
+  'commander',
+  'loader',
+  'gunner',
+  'driver',
+  'assistant',
+];
+
+/**
+ * Helper to determine which crew member is KIA from a 1d6 roll:
+ * 1: Commander, 2: Loader, 3: Gunner, 4: Driver, 5: Assistant
+ * 6: Commander only if Hatched (Asomado).
+ */
+export function resolveCrewCasualtyRoll(
+  roll1d6: number,
+  isCommanderHatched: boolean
+): { role: 'commander' | 'loader' | 'gunner' | 'driver' | 'assistant'; description: string } | null {
+  if (roll1d6 >= 1 && roll1d6 <= 5) {
+    const role = CREW_ROLES_ORDER[roll1d6 - 1];
+    const names: Record<string, string> = {
+      commander: 'Comandante',
+      loader: 'Cargador',
+      gunner: 'Artillero',
+      driver: 'Conductor',
+      assistant: 'Asistente Conductor',
+    };
+    return { role, description: `${names[role]} KIA` };
+  }
+  if (roll1d6 === 6) {
+    if (isCommanderHatched) {
+      return { role: 'commander', description: 'Comandante KIA (por estar Asomado)' };
+    }
+    return null; // Afortunado: Comandante estaba Interior
+  }
+  return null;
 }
