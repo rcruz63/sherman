@@ -110,12 +110,12 @@ describe('Mission 1 Integration Tests', () => {
   });
 
   describe('Line of Sight & Combat Calculation on Mission 1 Map', () => {
-    it('evaluates clear LOS from (5,4) to Black Spawn 4 at (0,4) along NW axis', () => {
-      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [4] });
+    it('evaluates clear LOS from (5,4) to Black Spawn 5 at (0,2) along NW axis', () => {
+      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [5] });
       const sherman = boardState.sherman; // at (5,4) facing 5 (NW)
-      const pz4 = boardState.enemyTanks[0]; // at Black Spawn 4: (0,4) facing 1 (NE)
+      const pz4 = boardState.enemyTanks[0]; // at Black Spawn 5: (0,2)
 
-      expect(pz4.coord).toEqual({ q: 0, r: 4 });
+      expect(pz4.coord).toEqual({ q: 0, r: 2 });
 
       const breakdown = calculateHitDifficulty(sherman, pz4, boardState);
 
@@ -125,10 +125,10 @@ describe('Mission 1 Integration Tests', () => {
       expect(breakdown.baseDifficulty).toBe(9); // TAM 4 + Dist 5
     });
 
-    it('blocks LOS from (5,3) to (0,3) due to intermediate Town Building at (4,3)', () => {
-      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [4] });
+    it('blocks LOS from (5,3) to (0,1) due to intermediate Town Building at (4,3)', () => {
+      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [5] });
       const sherman = { coord: { q: 5, r: 3 }, facing: 5 as const };
-      const target = { coord: { q: 0, r: 3 }, facing: 1 as const, size: 4, hasSmoke: false, isHullDown: false };
+      const target = { coord: { q: 0, r: 1 }, facing: 1 as const, size: 4, hasSmoke: false, isHullDown: false };
 
       const breakdown = calculateHitDifficulty(sherman, target, boardState);
 

@@ -15,7 +15,7 @@ export const HexBoard: React.FC<HexBoardProps> = ({
   onTileSelect,
   selectedTile,
 }) => {
-  const hexRadius = 42;
+  const hexRadius = 46;
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Pan & Zoom state
@@ -36,7 +36,7 @@ export const HexBoard: React.FC<HexBoardProps> = ({
     if (center.y > maxY) maxY = center.y;
   });
 
-  const padding = hexRadius * 2;
+  const padding = hexRadius * 0.95;
   const viewBoxX = minX - padding;
   const viewBoxY = minY - padding;
   const viewBoxWidth = maxX - minX + padding * 2;
@@ -75,7 +75,7 @@ export const HexBoard: React.FC<HexBoardProps> = ({
   };
 
   return (
-    <div className="map-container relative w-full h-full min-h-[480px] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl select-none touch-none">
+    <div className="map-container relative w-full h-full min-h-[480px] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl select-none touch-none flex flex-col justify-center items-center">
       {/* Floating Zoom Controls */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-800 shadow-lg">
         <button
@@ -106,6 +106,7 @@ export const HexBoard: React.FC<HexBoardProps> = ({
         ref={svgRef}
         className={`w-full h-full ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`}
+        preserveAspectRatio="xMidYMid meet"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -158,3 +159,5 @@ export const HexBoard: React.FC<HexBoardProps> = ({
     </div>
   );
 };
+
+export default HexBoard;

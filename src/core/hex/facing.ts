@@ -1,9 +1,5 @@
-/**
- * Facing and Armor Sector Calculation Utilities
- */
-
 import { ArmorSector, AxialCoord, Facing } from '../../types/game';
-import { getDirectionBetween } from './math';
+import { axialToPixelFlat, getDirectionBetween } from './math';
 
 /**
  * Returns the hex direction (0..5) from `from` towards `to`.
@@ -14,15 +10,14 @@ export function getClosestDirection(from: AxialCoord, to: AxialCoord): Facing {
   const exact = getDirectionBetween(from, to);
   if (exact !== null) return exact;
 
-  const dq = to.q - from.q;
-  const dr = to.r - from.r;
+  const pFrom = axialToPixelFlat(from, 20);
+  const pTo = axialToPixelFlat(to, 20);
 
-  // Flat-topped hex 2D position (x right, y down)
-  const x = 1.5 * dq;
-  const y = Math.sqrt(3) * (dr + dq / 2);
+  const dx = pTo.x - pFrom.x;
+  const dy = pTo.y - pFrom.y;
 
   // Angle in radians relative to North (screen -y)
-  let angle = Math.atan2(x, -y);
+  let angle = Math.atan2(dx, -dy);
   if (angle < 0) angle += 2 * Math.PI;
 
   // Each sector is 60 degrees (PI / 3)
