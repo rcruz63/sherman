@@ -66,7 +66,7 @@ export function checkLOS(
     if (step < distance) {
       const intermediateTile = boardState.tiles.get(coordKey(currentCoord));
       if (intermediateTile) {
-        if (intermediateTile.terrain === 'woods' || intermediateTile.terrain === 'building') {
+        if (intermediateTile.terrain === 'woods' || intermediateTile.terrain === 'building' || intermediateTile.hasBuilding) {
           return {
             hasLOS: false,
             reason: 'BLOCKED_BY_OBSTACLE',

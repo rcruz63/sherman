@@ -125,10 +125,12 @@ export function loadMissionState(
 
       let terrain: TerrainType = 'field';
       const rawTerrain = (h.terrain || '').toLowerCase();
-      if (h.hasBuilding || rawTerrain === 'building') terrain = 'building';
-      else if (rawTerrain === 'road') terrain = 'road';
+      if (rawTerrain === 'water') terrain = 'water';
       else if (rawTerrain === 'mud') terrain = 'mud';
       else if (rawTerrain === 'woods') terrain = 'woods';
+      else terrain = 'field';
+
+      const hasBuilding = !!h.hasBuilding || rawTerrain === 'building';
 
       const edges: [EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature] = [
         'none', 'none', 'none', 'none', 'none', 'none'
@@ -170,7 +172,7 @@ export function loadMissionState(
         coord: { q, r },
         terrain,
         edges,
-        hasBuilding: h.hasBuilding,
+        hasBuilding,
         buildingType: h.buildingType,
         treeLines: treeLineFacings,
         roadEdges: roadEdgeFacings,
@@ -179,6 +181,7 @@ export function loadMissionState(
         redSpawnNumber: h.redSpot,
         isEntryHex: isEntry,
         isExitHex: isExit,
+        isBridge: !!h.isBridge,
       };
 
       tileMap.set(key, tile);

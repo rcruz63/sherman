@@ -33,7 +33,7 @@ export function handleMinesEvent(
   const tileKey = coordKey(sherman.coord);
   const currentTile = boardState.tiles.get(tileKey);
 
-  const isOnRoad = currentTile?.terrain === 'road';
+  const isOnRoad = currentTile?.terrain === 'road' || !!currentTile?.isBridge || (currentTile?.roadEdges && currentTile.roadEdges.length > 0);
   const isAlreadyImmobilized = sherman.isImmobilized;
 
   if (!isOnRoad) {

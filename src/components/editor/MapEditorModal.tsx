@@ -39,8 +39,8 @@ const EMPTY_MISSION: MissionJSON = {
   },
   playerDeployment: {
     unit: "SHERMAN",
-    hex: { col: 5, row: 4 },
-    facing: 5,
+    hex: { col: 3, row: 6 },
+    facing: 0,
     initialStatus: {
       loaded: false,
       fireLevel: 0,
@@ -112,7 +112,9 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
 
   const handleTileClick = (tile: { coord: { q: number; r: number } }) => {
     const hexes = mission.hexes || [];
-    const updatedHexes = hexes.map((hex) => {
+    const updatedMission = JSON.parse(JSON.stringify(mission)) as MissionJSON;
+
+    updatedMission.hexes = hexes.map((hex) => {
       if (hex.col !== tile.coord.q || hex.row !== tile.coord.r) return hex;
 
       const newHex: RawHexConfig = { ...hex };
@@ -122,8 +124,13 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
         if (selectedTerrain === 'BUILDING') {
           newHex.hasBuilding = true;
           newHex.buildingType = 'TOWN';
-        } else if (selectedTerrain !== 'ROAD') {
-          newHex.hasBuilding = false;
+          if (hex.terrain === 'WATER' || hex.terrain === 'WOODS') {
+            newHex.terrain = 'FIELD';
+          }
+        } else {
+          if (selectedTerrain === 'WATER' || selectedTerrain === 'WOODS') {
+            newHex.hasBuilding = false;
+          }
         }
         if (selectedTerrain !== 'WATER') {
           newHex.isBridge = false;
@@ -132,6 +139,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
         newHex.isBridge = !newHex.isBridge;
         if (newHex.isBridge) {
           newHex.terrain = 'WATER';
+          newHex.hasBuilding = false;
         }
       } else if (activeTool === 'treeline') {
         const dirStr = INDEX_TO_DIR[selectedEdgeDir];
@@ -148,9 +156,6 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
           newHex.roadEdges = roads.filter((d) => d !== dirStr);
         } else {
           newHex.roadEdges = [...roads, dirStr];
-          if (newHex.terrain !== 'BUILDING' && newHex.terrain !== 'WATER') {
-            newHex.terrain = 'ROAD';
-          }
         }
       } else if (activeTool === 'blackSpot') {
         if (newHex.blackSpot?.number === selectedSpotNum) {
@@ -167,9 +172,13 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
       } else if (activeTool === 'entryExit') {
         if (!newHex.isEntry && !newHex.isExit) {
           newHex.isEntry = true;
+          newHex.isExit = false;
+          updatedMission.playerDeployment.hex = { col: tile.coord.q, row: tile.coord.r };
+          updatedMission.playerDeployment.facing = selectedSpotFacing;
         } else if (newHex.isEntry) {
           newHex.isEntry = false;
           newHex.isExit = true;
+          updatedMission.victoryConditions.exitHex = { col: tile.coord.q, row: tile.coord.r };
         } else {
           newHex.isExit = false;
         }
@@ -178,7 +187,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
       return newHex;
     });
 
-    setMission({ ...mission, hexes: updatedHexes });
+    setMission(updatedMission);
   };
 
   const handleAutoFix = () => {
@@ -216,7 +225,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
           <span className="text-2xl">🛠️</span>
           <div>
             <h2 className="text-xl font-bold text-amber-400">Editor de Misiones de Campaña (1 al 13)</h2>
-            <p className="text-xs text-slate-400">Crea y edita mapas para la campaña de 13 escenarios con validación automática.</p>
+            <p className="text-xs text-slate-400">Crea y edita mapas para la campaña con validación automática y exportación JSON.</p>
           </div>
         </div>
 
@@ -348,7 +357,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
             <div className="grid grid-cols-2 gap-1.5">
               {(
                 [
-                  { id: 'terrain', label: '🌾 Terreno' },
+                  { id: 'terrain', label: '🌾 Terreno Base' },
                   { id: 'bridge', label: '🌉 Puente' },
                   { id: 'treeline', label: '🌳 Arboleda' },
                   { id: 'road', label: '🛣️ Carretera' },
@@ -371,16 +380,15 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
           {/* Subtools Config */}
           {activeTool === 'terrain' && (
             <div>
-              <h4 className="font-semibold text-slate-300 mb-1.5">Tipo de Terreno:</h4>
+              <h4 className="font-semibold text-slate-300 mb-1.5">Terreno Base del Hexágono:</h4>
               <div className="space-y-1">
                 {(
                   [
                     { id: 'FIELD', label: '🌾 Campo (Verde)' },
-                    { id: 'ROAD', label: '🛣️ Carretera (Gris)' },
                     { id: 'MUD', label: '🤎 Barro (Marrón)' },
-                    { id: 'WOODS', label: '🌲 Bosque Frondoso (Interior)' },
-                    { id: 'BUILDING', label: '🏠 Pueblo / Edificio' },
+                    { id: 'WOODS', label: '🌲 Bosque Frondoso (Verde Oscuro)' },
                     { id: 'WATER', label: '🌊 Agua (Impasable)' },
+                    { id: 'BUILDING', label: '🏠 Pueblo / Edificio (en Campo/Barro)' },
                   ] as const
                 ).map((t) => (
                   <button
@@ -399,7 +407,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
             <div className="space-y-2">
               <h4 className="font-semibold text-slate-300">Puente sobre Agua:</h4>
               <p className="text-[11px] text-slate-400">
-                Haz clic en cualquier hexágono para alternar un <b>Puente</b>. El puente permite a los tanques cruzar hexágonos de <b>Agua</b> siguiendo la carretera.
+                Haz clic en cualquier hexágono de <b>Agua</b> para añadir un <b>Puente</b>. El puente conserva la carretera sobre el agua y permite el paso a los tanques.
               </p>
             </div>
           )}
@@ -419,7 +427,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
                 ))}
               </div>
               <p className="text-[10px] text-slate-400 mt-2">
-                Haz clic en cualquier hexágono para alternar {activeTool === 'treeline' ? 'la arboleda en esa arista' : 'la conexión de carretera'}.
+                Haz clic en cualquier hexágono para alternar {activeTool === 'treeline' ? 'la arboleda en esa arista' : 'el tramo de carretera sin cambiar el suelo base'}.
               </p>
             </div>
           )}
@@ -475,13 +483,22 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
             </div>
           )}
 
+          {activeTool === 'entryExit' && (
+            <div className="space-y-2">
+              <h4 className="font-semibold text-slate-300">Entrada / Salida:</h4>
+              <p className="text-[11px] text-slate-400">
+                Haz clic en un hexágono para alternar entre <b>ENTRADA</b> del Sherman (actualiza las coordenadas de despliegue y su orientación al valor seleccionado en Spots) y <b>SALIDA</b>.
+              </p>
+            </div>
+          )}
+
           <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400">
             <p className="font-semibold text-slate-300 mb-1">💡 Flujo de Trabajo:</p>
             <ul className="list-disc list-inside space-y-0.5">
               <li>Selecciona la plantilla (Misión 1 a 13).</li>
-              <li>Edita el terreno, carreteras y arboledas.</li>
+              <li>Pinta terreno base, carreteras, puentes y pueblos.</li>
               <li>Presiona <b>⚡ Auto-Corregir Red</b>.</li>
-              <li>Descarga <b>mission{mission.id}.json</b> para sustituir la misión oficial.</li>
+              <li>Descarga <b>mission{mission.id}.json</b>.</li>
             </ul>
           </div>
         </div>
