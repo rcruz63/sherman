@@ -339,3 +339,35 @@ export interface BoardState {
   currentPhase: TurnPhase;
   missionData?: MissionJSON;
 }
+
+export type LogVerbosityMode = 'compact' | 'detailed';
+
+export interface ModifierItem {
+  label: string;
+  value: number | string;
+}
+
+export interface LogDetailBreakdown {
+  diceRolls?: number[];
+  diceTotal?: number;
+  targetDifficulty?: number;
+  baseDistance?: number;
+  targetSize?: number;
+  modifiers?: ModifierItem[];
+  impactSector?: ArmorSector | string;
+  penetration?: number;
+  armorValue?: number;
+  damageRoll?: number | number[];
+  damageEffect?: string;
+  notes?: string;
+}
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  type: 'info' | 'combat' | 'ai' | 'event' | 'system' | 'warning' | 'success';
+  summary: string;
+  detail?: string;
+  breakdown?: LogDetailBreakdown;
+}
+

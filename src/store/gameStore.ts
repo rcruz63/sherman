@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BoardState, CommanderPosition, Facing, MissionJSON, TurnPhase, EnemyTank } from '../types/game';
+import { BoardState, CommanderPosition, Facing, MissionJSON, TurnPhase, EnemyTank, LogEntry, LogVerbosityMode } from '../types/game';
 import mission1Raw from '../data/missions/mission1.json';
 import { loadMissionState, LoadMissionOptions } from '../core/rules/missionLoader';
 import {
@@ -13,19 +13,22 @@ import {
 import { runAllGermanActivations } from '../core/rules/germanAI';
 import { calculateHitDifficulty, resolveDamageCheck, resolveDamageEffect } from '../core/rules/combat';
 import { getDirectionBetween, hexNeighbor } from '../core/hex/math';
+import { createLogEntry, buildHitModifiersList, SECTOR_NAMES } from '../core/rules/logUtils';
 
 const mission1Data = mission1Raw as MissionJSON;
 
 export interface GameStoreState {
   boardState: BoardState | null;
-  combatLog: string[];
+  combatLog: (string | LogEntry)[];
+  logVerbosity: LogVerbosityMode;
   gameEndStatus: GameEndStatus | null;
 
   // Store Actions
   loadMission: (missionData?: MissionJSON, options?: LoadMissionOptions) => void;
   setCommanderPosition: (position: CommanderPosition) => void;
   setPhase: (phase: TurnPhase) => void;
-  addLogMessage: (message: string) => void;
+  addLogMessage: (message: string | LogEntry) => void;
+  setLogVerbosity: (mode: LogVerbosityMode) => void;
   clearLog: () => void;
 
   // Tactical Gameplay Actions
@@ -50,6 +53,7 @@ export interface GameStoreState {
 export const useGameStore = create<GameStoreState>((set, get) => ({
   boardState: null,
   combatLog: [],
+  logVerbosity: 'compact',
   gameEndStatus: null,
 
   loadMission: (missionData = mission1Data, options?: LoadMissionOptions) => {
@@ -110,10 +114,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  addLogMessage: (message: string) => {
+  addLogMessage: (message: string | LogEntry) => {
+    const entry = typeof message === 'string' ? createLogEntry(message) : message;
     set((state) => ({
-      combatLog: [...state.combatLog, message],
+      combatLog: [...state.combatLog, entry],
     }));
+  },
+
+  setLogVerbosity: (mode: LogVerbosityMode) => {
+    set({ logVerbosity: mode });
   },
 
   clearLog: () => set({ combatLog: [] }),
@@ -249,17 +258,30 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const rollTotal = roll1 + roll2;
     const hitSuccess = rollTotal >= hitCalc.totalDifficulty;
 
-    const diffParts: string[] = [`TAM ${target.size}`, `Dist ${hitCalc.baseDistance}`];
-    if (hitCalc.buildingModifier) diffParts.push('Cobertura Edificio +1');
-    if (hitCalc.treeLineModifier) diffParts.push(`Arboleda +${hitCalc.treeLineModifier}`);
-    if (hitCalc.smokeModifier) diffParts.push('Humo +1');
-    if (hitCalc.hullDownModifier) diffParts.push('Desenfilada +2');
-    if (hitCalc.rearArcModifier) diffParts.push('Arco Trasero +1');
+    const modifiers = buildHitModifiersList(hitCalc);
+    const sectorName = SECTOR_NAMES[hitCalc.impactSector] || hitCalc.impactSector;
+    const diffStr = modifiers.map((m) => `${m.label} ${m.value}`).join(' + ');
 
-    const logMessages: string[] = [
-      `🎯 Sherman dispara a ${target.type.toUpperCase()} (${target.coord.q},${target.coord.r}): Dificultad ${hitCalc.totalDifficulty} (${diffParts.join(' + ')}). Tirada 2d6 = [${roll1}, ${roll2}] = ${rollTotal} ➔ ${hitSuccess ? 'IMPACTO' : 'FALLADO'}.`,
-    ];
+    const fireLogEntry: LogEntry = createLogEntry(
+      `🎯 Sherman dispara a ${target.type.toUpperCase()} (${target.coord.q},${target.coord.r}): ${
+        hitSuccess ? '¡IMPACTO!' : 'FALLADO'
+      } (${rollTotal} vs Dif ${hitCalc.totalDifficulty})`,
+      {
+        type: 'combat',
+        detail: `Disparo Sherman a ${target.type.toUpperCase()} en (${target.coord.q},${target.coord.r}) | Tirada 2d6 = [${roll1}, ${roll2}] = ${rollTotal} vs Dificultad ${hitCalc.totalDifficulty} (${diffStr}) | Sector de Impacto: ${sectorName}`,
+        breakdown: {
+          diceRolls: [roll1, roll2],
+          diceTotal: rollTotal,
+          targetDifficulty: hitCalc.totalDifficulty,
+          baseDistance: hitCalc.baseDistance,
+          targetSize: target.size,
+          modifiers,
+          impactSector: sectorName,
+        },
+      }
+    );
 
+    const logMessages: (string | LogEntry)[] = [fireLogEntry];
     let updatedTanks = [...boardState.enemyTanks];
 
     if (hitSuccess) {
@@ -269,16 +291,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const dTotal = d1 + d2;
       const damageRes = resolveDamageCheck(boardState.sherman.gunPenetration, targetArmor, dTotal);
 
-      logMessages.push(
-        `¿Daños? Pen ${boardState.sherman.gunPenetration} vs Blindaje ${hitCalc.impactSector} ${targetArmor} ➔ Tirada 2d6 = [${d1}, ${d2}] = ${dTotal} ➔ ${
-          damageRes.result === 'NO_EFFECT' ? 'SIN PENETRACIÓN' : 'DAÑO INFLIGIDO'
-        }.`
-      );
+      let damageEffectDesc = '';
+      let effectRoll: number | undefined;
 
       if (damageRes.result === 'DAMAGED' || damageRes.result === 'DESTROYED') {
-        const effectRoll = Math.floor(Math.random() * 6) + 1;
+        effectRoll = Math.floor(Math.random() * 6) + 1;
         const damageEffect = resolveDamageEffect('germanTank', effectRoll);
-        logMessages.push(`Efecto de daño: Tirada d6 = ${effectRoll} ➔ ${target.type.toUpperCase()} queda ${damageEffect.description.toUpperCase()}.`);
+        damageEffectDesc = damageEffect.description;
 
         updatedTanks = updatedTanks.map((t) => {
           if (t.id === target.id) {
@@ -288,6 +307,33 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           return t;
         });
       }
+
+      const damageLogEntry: LogEntry = createLogEntry(
+        `💥 Control de Daños en ${target.type.toUpperCase()}: ${
+          damageRes.result === 'NO_EFFECT'
+            ? 'SIN PENETRACIÓN'
+            : damageRes.result === 'DESTROYED'
+            ? `¡DESTRUIDO! (${damageEffectDesc})`
+            : `DAÑADO (${damageEffectDesc})`
+        }`,
+        {
+          type: 'combat',
+          detail: `Penetración Sherman ${boardState.sherman.gunPenetration} + Tirada 2d6 [${d1}, ${d2}] = Total ${damageRes.totalAttack} vs Blindaje ${sectorName} (${targetArmor}) ➔ ${
+            damageRes.result === 'NO_EFFECT' ? 'Sin Penetración' : `Efecto: ${damageEffectDesc} (Tirada d6 = ${effectRoll})`
+          }`,
+          breakdown: {
+            diceRolls: [d1, d2],
+            diceTotal: dTotal,
+            penetration: boardState.sherman.gunPenetration,
+            armorValue: targetArmor,
+            impactSector: sectorName,
+            damageRoll: effectRoll,
+            damageEffect: damageEffectDesc,
+          },
+        }
+      );
+
+      logMessages.push(damageLogEntry);
     }
 
     set((state) => {

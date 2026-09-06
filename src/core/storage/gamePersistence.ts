@@ -2,7 +2,7 @@
  * Game State Auto-Save & Persistence Module (localStorage / IndexedDB)
  */
 
-import { BoardState, BoardHex } from '../../types/game';
+import { BoardState, BoardHex, LogEntry } from '../../types/game';
 
 const STORAGE_KEY = 'sherman_game_save_v1';
 
@@ -16,14 +16,14 @@ export interface SavedGameState {
     currentPhase: BoardState['currentPhase'];
     missionData: BoardState['missionData'];
   };
-  combatLog: string[];
+  combatLog: (string | LogEntry)[];
   savedAt: string;
 }
 
 /**
  * Saves current game state to localStorage
  */
-export function saveGameStateToStorage(boardState: BoardState, combatLog: string[]): boolean {
+export function saveGameStateToStorage(boardState: BoardState, combatLog: (string | LogEntry)[]): boolean {
   try {
     const tilesArray = Array.from(boardState.tiles.entries());
     const payload: SavedGameState = {
@@ -50,7 +50,7 @@ export function saveGameStateToStorage(boardState: BoardState, combatLog: string
 /**
  * Loads saved game state from localStorage
  */
-export function loadGameStateFromStorage(): { boardState: BoardState; combatLog: string[] } | null {
+export function loadGameStateFromStorage(): { boardState: BoardState; combatLog: (string | LogEntry)[] } | null {
   try {
     const jsonStr = localStorage.getItem(STORAGE_KEY);
     if (!jsonStr) return null;

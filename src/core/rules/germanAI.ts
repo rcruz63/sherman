@@ -6,6 +6,7 @@ import { BoardState, EnemyTank, Facing } from '../../types/game';
 import { hexDistance, hexNeighbor } from '../hex/math';
 import { getClosestDirection } from '../hex/facing';
 import { calculateHitDifficulty, resolveDamageCheck, resolveDamageEffect } from './combat';
+import { SECTOR_NAMES } from './logUtils';
 
 export interface AIActionResult {
   tankId: string;
@@ -105,26 +106,44 @@ export function executeAITankTurn(
 
     if (hitCalc.hasLOS && !fired) {
       // Primary Action: Fire Main Gun!
-      const roll2d6 = Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
-      logs.push(`Disparar a Sherman (Dificultad ${hitCalc.totalDifficulty}) ➔ Tirada ${roll2d6}`);
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const roll2d6 = d1 + d2;
+      const hitSuccess = roll2d6 >= hitCalc.totalDifficulty;
 
-      if (roll2d6 >= hitCalc.totalDifficulty) {
+      const mods: string[] = [`Dist ${hitCalc.baseDistance}`, `TAM 4`];
+      if (hitCalc.buildingModifier) mods.push('Edificio +1');
+      if (hitCalc.treeLineModifier) mods.push(`Arboleda +${hitCalc.treeLineModifier}`);
+      if (hitCalc.smokeModifier) mods.push('Humo +1');
+      if (hitCalc.hullDownModifier) mods.push('Desenfilada +2');
+      if (hitCalc.rearArcModifier) mods.push('Arco Trasero +1');
+
+      const modStr = mods.join(' + ');
+      const sectorName = SECTOR_NAMES[hitCalc.impactSector] || hitCalc.impactSector;
+
+      if (hitSuccess) {
         // Hit! Compare PEN vs Sherman Armor on hit sector
         const shermanArmor = boardState.sherman.armor[hitCalc.impactSector];
         const damageRes = resolveDamageCheck(tank.penetration, shermanArmor, roll2d6);
-        logs.push(`¡IMPACTO! ${damageRes.detail}`);
 
         if (damageRes.result === 'DAMAGED' || damageRes.result === 'DESTROYED') {
-          const effect = resolveDamageEffect('sherman', Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1);
-          logs.push(`Efecto de daño en Sherman: ${effect.description}`);
+          const d1Eff = Math.floor(Math.random() * 6) + 1;
+          const d2Eff = Math.floor(Math.random() * 6) + 1;
+          const effectRoll = d1Eff + d2Eff;
+          const effect = resolveDamageEffect('sherman', effectRoll);
+
+          logs.push(`Disparo a Sherman (Dificultad ${hitCalc.totalDifficulty} [${modStr}]) ➔ Tirada 2d6 = [${d1}, ${d2}] = ${roll2d6} ➔ ¡IMPACTO!`);
+          logs.push(`💥 Daño en Sherman: PEN ${tank.penetration} + Dados ${roll2d6} = Total ${damageRes.totalAttack} vs Blindaje ${sectorName} (${shermanArmor}) ➔ ${effect.description} (Tirada 2d6 = [${d1Eff}, ${d2Eff}] = ${effectRoll})`);
 
           if (effect.outcome === 'TURRET_DAMAGED') boardState.sherman.isTurretDamaged = true;
           if (effect.outcome === 'IMMOBILIZED') boardState.sherman.isImmobilized = true;
           if (effect.outcome === 'FIRE_STARTED') boardState.sherman.fireLevel += 1;
           if (effect.outcome === 'DESTROYED') boardState.sherman.isImmobilized = true;
+        } else {
+          logs.push(`Disparo a Sherman (Dificultad ${hitCalc.totalDifficulty} [${modStr}]) ➔ Tirada 2d6 = [${d1}, ${d2}] = ${roll2d6} ➔ REBOTADO (PEN ${tank.penetration} vs Blindaje ${sectorName} ${shermanArmor})`);
         }
       } else {
-        logs.push(`Disparo fallado (${roll2d6} < ${hitCalc.totalDifficulty})`);
+        logs.push(`Disparo a Sherman (Dificultad ${hitCalc.totalDifficulty} [${modStr}]) ➔ Tirada 2d6 = [${d1}, ${d2}] = ${roll2d6} ➔ FALLADO`);
       }
       fired = true;
     } else {
