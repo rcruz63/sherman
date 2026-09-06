@@ -100,7 +100,7 @@ export function validateMapConfig(mission: MissionJSON): ValidationResult {
       }
     }
 
-    // 3. Validate Treelines Edge Reciprocity
+    // 3. Validate Treelines Edge Reciprocity (shared edge is valid if declared on either neighbor)
     if (hex.treeLines && hex.treeLines.length > 0) {
       for (const dirStr of hex.treeLines) {
         const dirIdx = DIR_TO_INDEX[dirStr];
@@ -110,19 +110,13 @@ export function validateMapConfig(mission: MissionJSON): ValidationResult {
         const neighborKey = `${neighborCoord.q},${neighborCoord.r}`;
         const neighbor = gridMap.get(neighborKey);
 
-        if (neighbor) {
-          const oppDirIdx = OPPOSITE_FACING[dirIdx];
-          const oppDirStr = INDEX_TO_DIR[oppDirIdx];
-          const hasOppositeTreeLine = neighbor.treeLines?.includes(oppDirStr);
-
-          if (!hasOppositeTreeLine) {
-            issues.push({
-              type: 'WARNING',
-              category: 'TREELINE',
-              hex: { col: hex.col, row: hex.row },
-              message: `Arboleda en (${hex.col},${hex.row}) hacia [${dirStr}] no tiene réplica en el vecino (${neighbor.col},${neighbor.row}) [${oppDirStr}].`,
-            });
-          }
+        if (!neighbor) {
+          issues.push({
+            type: 'WARNING',
+            category: 'TREELINE',
+            hex: { col: hex.col, row: hex.row },
+            message: `Arboleda en (${hex.col},${hex.row}) hacia [${dirStr}] apunta fuera de los límites del mapa.`,
+          });
         }
       }
     }
@@ -140,7 +134,7 @@ export function validateMapConfig(mission: MissionJSON): ValidationResult {
         if (neighbor) {
           const oppDirIdx = OPPOSITE_FACING[dirIdx];
           const oppDirStr = INDEX_TO_DIR[oppDirIdx];
-          const hasOppositeRoad = neighbor.roadEdges?.includes(oppDirStr);
+          const hasOppositeRoad = neighbor.roadEdges?.includes(oppDirStr) || neighbor.terrain === 'ROAD' || neighbor.isBridge;
 
           if (!hasOppositeRoad) {
             issues.push({
@@ -175,26 +169,9 @@ export function autoFixMapConfig(mission: MissionJSON): MissionJSON {
     gridMap.set(`${hex.col},${hex.row}`, hex);
   });
 
-  // Synchronize Treelines
-  hexes.forEach((hex) => {
-    if (hex.treeLines && hex.treeLines.length > 0) {
-      hex.treeLines.forEach((dirStr) => {
-        const dirIdx = DIR_TO_INDEX[dirStr];
-        if (dirIdx === undefined) return;
+  // Synchronize Treelines: No longer injects reciprocal treelines into neighbor hexes
+  // Treelines declared on one side of a shared edge are fully valid and handled in-memory by missionLoader.
 
-        const neighborCoord = hexNeighbor({ q: hex.col, r: hex.row }, dirIdx);
-        const neighbor = gridMap.get(`${neighborCoord.q},${neighborCoord.r}`);
-
-        if (neighbor) {
-          const oppDirStr = INDEX_TO_DIR[OPPOSITE_FACING[dirIdx]];
-          if (!neighbor.treeLines) neighbor.treeLines = [];
-          if (!neighbor.treeLines.includes(oppDirStr)) {
-            neighbor.treeLines.push(oppDirStr);
-          }
-        }
-      });
-    }
-  });
 
   // Synchronize Road Edges
   hexes.forEach((hex) => {

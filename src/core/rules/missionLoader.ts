@@ -105,16 +105,16 @@ export function parseAxialCoord(
   return { q, r };
 }
 
-import { autoFixMapConfig } from '../hex/mapValidator';
+import { hexNeighbor } from '../hex/math';
+import { OPPOSITE_FACING } from '../hex/mapValidator';
 
 /**
  * Loads a mission JSON into a fully initialized BoardState
  */
 export function loadMissionState(
-  rawMissionData: MissionJSON,
+  missionData: MissionJSON,
   options?: LoadMissionOptions
 ): BoardState {
-  const missionData = autoFixMapConfig(rawMissionData);
   const tileMap = new Map<string, BoardHex>();
   const blackNumbers: BlackSpawnPoint[] = [];
   const redNumbers: RedSpawnPoint[] = [];
@@ -203,6 +203,18 @@ export function loadMissionState(
           hex: { q, r },
         });
       }
+    });
+
+    // In-memory pass: synchronize shared treeline edges between adjacent hexes for Line of Sight
+    tileMap.forEach((tile) => {
+      tile.treeLines?.forEach((dir) => {
+        const neighborCoord = hexNeighbor(tile.coord, dir);
+        const neighborTile = tileMap.get(`${neighborCoord.q},${neighborCoord.r}`);
+        if (neighborTile) {
+          const oppDir = OPPOSITE_FACING[dir];
+          neighborTile.edges[oppDir] = 'treeline';
+        }
+      });
     });
   } else if (missionData.map) {
     // Legacy Rectangular Grid Generation

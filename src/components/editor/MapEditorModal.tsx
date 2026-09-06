@@ -105,8 +105,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
   const handleSelectMissionTemplate = (id: number) => {
     setSelectedMissionId(id);
     const target = missions.find((m) => m.id === id) || missions[0];
-    const fixedTarget = autoFixMapConfig(target);
-    setMission(JSON.parse(JSON.stringify(fixedTarget)));
+    setMission(JSON.parse(JSON.stringify(target)));
   };
 
   const validation: ValidationResult = validateMapConfig(mission);
@@ -210,17 +209,9 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
         }
       }
 
-      // Automatic reciprocal update on neighbor hex for treelines & roads
+      // Automatic reciprocal update on neighbor hex for roads only (treelines are declared on single edge)
       if (isNeighbor) {
-        if (activeTool === 'treeline') {
-          const lines = newHex.treeLines ? [...newHex.treeLines] : [];
-          if (shouldAddEdge) {
-            if (!lines.includes(oppDirStr)) lines.push(oppDirStr);
-          } else {
-            newHex.treeLines = lines.filter((d) => d !== oppDirStr);
-          }
-          if (shouldAddEdge) newHex.treeLines = lines;
-        } else if (activeTool === 'road') {
+        if (activeTool === 'road') {
           const roads = newHex.roadEdges ? [...newHex.roadEdges] : [];
           if (shouldAddEdge) {
             if (!roads.includes(oppDirStr)) roads.push(oppDirStr);
