@@ -386,3 +386,63 @@ export interface LogEntry {
   breakdown?: LogDetailBreakdown;
 }
 
+export type CampaignType = 'sequential' | 'custom' | 'random';
+
+export interface CampaignProgress {
+  active: boolean;
+  type: CampaignType;
+  missionSequence: number[];
+  currentMissionIndex: number;
+  completedMissionIds: number[];
+  pendingCrewReplacement: boolean;
+  campaignStats: {
+    totalTurns: number;
+    tanksDestroyed: number;
+    infantryEliminated: number;
+    crewCasualtiesCount: number;
+  };
+}
+
+export interface SaveSlotMetadata {
+  id: string;
+  name: string;
+  mode: 'single' | 'campaign';
+  missionId: number;
+  missionTitle: string;
+  campaignInfo?: {
+    type: CampaignType;
+    totalMissions: number;
+    currentMissionIndex: number;
+    missionSequence: number[];
+    completedMissionIds: number[];
+  };
+  currentTurn: number;
+  currentPhase: TurnPhase;
+  shermanStatus: {
+    crewAliveCount: number;
+    isLoaded: boolean;
+    isTurretDamaged: boolean;
+    isImmobilized: boolean;
+    fireLevel: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveSlotData {
+  metadata: SaveSlotMetadata;
+  boardState: {
+    tiles: Array<[string, BoardHex]>;
+    sherman: BoardState['sherman'];
+    enemyTanks: BoardState['enemyTanks'];
+    enemyTrucks?: BoardState['enemyTrucks'];
+    enemyInfantry: BoardState['enemyInfantry'];
+    currentTurn: number;
+    currentPhase: BoardState['currentPhase'];
+    missionData: BoardState['missionData'];
+    shermanOperations?: BoardState['shermanOperations'];
+  };
+  combatLog: (string | LogEntry)[];
+  campaignState?: CampaignProgress | null;
+}
+

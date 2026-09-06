@@ -8,6 +8,7 @@ import {
   BoardState,
   EnemyInfantry,
   Facing,
+  ShermanDicePoolConfig,
   ShermanState,
   TerrainType,
 } from '../../types/game';
@@ -33,7 +34,8 @@ export interface SectionDiceBreakdown {
 export function calculateSectionDice(
   section: ShermanSectionType,
   phaseStartTerrain: TerrainType,
-  sherman: ShermanState
+  sherman: ShermanState,
+  dicePoolConfig?: ShermanDicePoolConfig
 ): SectionDiceBreakdown {
   const explanation: string[] = [];
 
@@ -55,7 +57,9 @@ export function calculateSectionDice(
       };
     }
 
-    const baseTerrainDice = effectiveTerrain === 'road' ? 2 : effectiveTerrain === 'field' ? 1 : 0;
+    const baseTerrainDice = dicePoolConfig
+      ? dicePoolConfig.maneuver[effectiveTerrain]
+      : effectiveTerrain === 'road' ? 2 : effectiveTerrain === 'field' ? 1 : 0;
     explanation.push(`Terreno inicial (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
 
     let crewBonus = 0;
@@ -84,7 +88,9 @@ export function calculateSectionDice(
   }
 
   if (section === 'attack') {
-    const baseTerrainDice = effectiveTerrain === 'mud' ? 1 : 2; // Carretera: 2, Campo: 2, Barro: 1
+    const baseTerrainDice = dicePoolConfig
+      ? dicePoolConfig.attack[effectiveTerrain]
+      : effectiveTerrain === 'mud' ? 1 : 2;
     explanation.push(`Terreno inicial (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
 
     let crewBonus = 0;
@@ -113,7 +119,9 @@ export function calculateSectionDice(
   }
 
   // Section: misc
-  const baseTerrainDice = effectiveTerrain === 'field' ? 2 : 1; // Carretera: 1, Campo: 2, Barro: 1
+  const baseTerrainDice = dicePoolConfig
+    ? dicePoolConfig.misc[effectiveTerrain]
+    : effectiveTerrain === 'field' ? 2 : 1;
   explanation.push(`Terreno inicial (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
 
   let crewBonus = 0;

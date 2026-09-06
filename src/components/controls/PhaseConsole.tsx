@@ -236,7 +236,8 @@ export const PhaseConsole: React.FC = () => {
                   const diceInfo = calculateSectionDice(
                     section,
                     boardState.shermanOperations.phaseStartTerrain,
-                    sherman
+                    sherman,
+                    boardState.missionData?.shermanDicePool
                   );
                   const availableDice = boardState.shermanOperations.availableDice;
                   const rolledDice = boardState.shermanOperations.rolledDice;

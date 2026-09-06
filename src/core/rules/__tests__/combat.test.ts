@@ -146,8 +146,8 @@ describe('Combat Rules Engine', () => {
     it('resolves damage effects for German tanks correctly (1d6)', () => {
       expect(resolveDamageEffect('germanTank', 1).outcome).toBe('DAMAGED');
       expect(resolveDamageEffect('germanTank', 2).outcome).toBe('DAMAGED');
-      expect(resolveDamageEffect('germanTank', 3).outcome).toBe('TURRET_DAMAGED');
-      expect(resolveDamageEffect('germanTank', 4).outcome).toBe('TURRET_DAMAGED');
+      expect(resolveDamageEffect('germanTank', 3).outcome).toBe('DAMAGED');
+      expect(resolveDamageEffect('germanTank', 4).outcome).toBe('DAMAGED');
       expect(resolveDamageEffect('germanTank', 5).outcome).toBe('DESTROYED');
       expect(resolveDamageEffect('germanTank', 6).outcome).toBe('DESTROYED');
     });

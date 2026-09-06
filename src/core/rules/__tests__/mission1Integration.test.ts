@@ -43,8 +43,8 @@ describe('Mission 1 Integration Tests', () => {
       expect(pz1.coord).toEqual({ q: 2, r: 0 });
       expect(pz1.facing).toBe(3); // South
       expect(pz1.size).toBe(4);
-      expect(pz1.armor).toEqual({ D: 6, LD: 4, LT: 3, T: 2 });
-      expect(pz1.penetration).toBe(6);
+      expect(pz1.armor).toEqual({ D: 6, LD: 5, LT: 4, T: 4 });
+      expect(pz1.penetration).toBe(1);
 
       const pz2 = boardState.enemyTanks.find((t) => t.spawnNumber === 2)!;
       expect(pz2).toBeDefined();

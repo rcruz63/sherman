@@ -27,26 +27,26 @@ import { coordKey } from '../hex/math';
 export const TANK_STATS: Record<string, { size: number; armor: ArmorStats; penetration: number; baseDice: number }> = {
   PANZER_IV: {
     size: 4,
-    armor: { D: 6, LD: 4, LT: 3, T: 2 },
-    penetration: 6,
+    armor: { D: 6, LD: 5, LT: 4, T: 4 },
+    penetration: 1,
     baseDice: 4,
   },
   PANZER_III: {
-    size: 3,
-    armor: { D: 5, LD: 3, LT: 2, T: 2 },
-    penetration: 5,
+    size: 5,
+    armor: { D: 5, LD: 4, LT: 3, T: 3 },
+    penetration: 0,
     baseDice: 3,
   },
   TIGER: {
-    size: 5,
-    armor: { D: 10, LD: 7, LT: 5, T: 4 },
-    penetration: 9,
+    size: 3,
+    armor: { D: 7, LD: 6, LT: 5, T: 4 },
+    penetration: 2,
     baseDice: 4,
   },
   SHERMAN: {
     size: 4,
-    armor: { D: 8, LD: 6, LT: 4, T: 3 },
-    penetration: 7,
+    armor: { D: 6, LD: 5, LT: 4, T: 4 },
+    penetration: 1,
     baseDice: 4,
   },
 };
@@ -391,17 +391,55 @@ export function loadMissionState(
     });
   }
 
-  // Process Infantry Deployment (e.g., OFFICER_INFANTRY in Mission 8)
+  // Process Infantry Deployment (e.g., Mission 3, 4, 5, 8)
   const enemyInfantry: EnemyInfantry[] = [];
   if (missionData.enemyDeployment.infantry) {
-    missionData.enemyDeployment.infantry.forEach((infConfig, idx) => {
+    let infIdCounter = 1;
+    missionData.enemyDeployment.infantry.forEach((infConfig) => {
       if (infConfig.spawnMethod === 'FIXED_HEX' && infConfig.hex) {
         enemyInfantry.push({
-          id: infConfig.id || `inf_${idx + 1}`,
+          id: infConfig.id || `inf_${infIdCounter++}`,
           type: 'infantry',
           coord: parseAxialCoord(infConfig.hex),
           status: 'active',
           isObjective: infConfig.isObjective,
+        });
+      } else if (infConfig.spawnMethod === 'ALL_BUILDING_HEXES') {
+        tileMap.forEach((tile) => {
+          if (tile.hasBuilding || tile.terrain === 'building') {
+            enemyInfantry.push({
+              id: `inf_${infIdCounter++}`,
+              type: 'infantry',
+              coord: { ...tile.coord },
+              status: 'active',
+              isObjective: infConfig.isObjective,
+            });
+          }
+        });
+      } else if (infConfig.spawnMethod === 'FIXED_RED_NUMBER' && infConfig.number !== undefined) {
+        const targetTile = Array.from(tileMap.values()).find((t) => t.redSpawnNumber === infConfig.number);
+        if (targetTile) {
+          enemyInfantry.push({
+            id: `inf_${infIdCounter++}`,
+            type: 'infantry',
+            coord: { ...targetTile.coord },
+            status: 'active',
+            spawnNumber: infConfig.number,
+            isObjective: infConfig.isObjective,
+          });
+        }
+      } else if (infConfig.spawnMethod === 'RANDOM_UNIQUE_RED_NUMBERS' && infConfig.count) {
+        const availableRedSpawns = [...redNumbers].sort(() => 0.5 - Math.random());
+        const selected = availableRedSpawns.slice(0, infConfig.count);
+        selected.forEach((sp) => {
+          enemyInfantry.push({
+            id: `inf_${infIdCounter++}`,
+            type: 'infantry',
+            coord: { ...sp.hex },
+            status: 'active',
+            spawnNumber: sp.number,
+            isObjective: infConfig.isObjective,
+          });
         });
       }
     });

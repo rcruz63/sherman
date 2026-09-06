@@ -20,14 +20,22 @@ describe('Mission 2 & MINES Event Integration Tests', () => {
 
       const tiger = boardState.enemyTanks.find((t) => t.type === 'tiger');
       expect(tiger).toBeDefined();
-      expect(tiger?.size).toBe(5); // TAM 5
-      expect(tiger?.armor).toEqual({ D: 10, LD: 7, LT: 5, T: 4 });
-      expect(tiger?.penetration).toBe(9); // PEN 9
+      expect(tiger?.size).toBe(3); // TAM 3
+      expect(tiger?.armor).toEqual({ D: 7, LD: 6, LT: 5, T: 4 });
+      expect(tiger?.penetration).toBe(2); // PEN 2
 
       const panzer3Tanks = boardState.enemyTanks.filter((t) => t.type === 'panzerIII');
       expect(panzer3Tanks).toHaveLength(2);
-      expect(panzer3Tanks[0].size).toBe(3);
-      expect(panzer3Tanks[0].armor).toEqual({ D: 5, LD: 3, LT: 2, T: 2 });
+      expect(panzer3Tanks[0].size).toBe(5); // TAM 5
+      expect(panzer3Tanks[0].armor).toEqual({ D: 5, LD: 4, LT: 3, T: 3 });
+      expect(panzer3Tanks[0].penetration).toBe(0); // PEN 0
+    });
+
+    it('calculates Mission 2 custom dice pool accurately (Attack: Road 1, Field 2, Mud 2)', () => {
+      const diceConfig = mission2.shermanDicePool;
+      expect(diceConfig.attack).toEqual({ road: 1, field: 2, mud: 2 });
+      expect(diceConfig.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(diceConfig.misc).toEqual({ road: 1, field: 2, mud: 1 });
     });
   });
 

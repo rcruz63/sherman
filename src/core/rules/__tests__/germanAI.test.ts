@@ -282,7 +282,7 @@ describe('Fase 6: Operaciones de Tanques Alemanes (germanAI)', () => {
       const tankClose = createMockTank('close', { coord: { q: 2, r: 3 } });
       board.enemyTanks = [tankFar, tankClose];
 
-      const results = runAllGermanActivations(board);
+      const results = runAllGermanActivations(board, undefined, { hitRoll: [1, 1] });
       expect(results[0].tankId).toBe('close');
       expect(results[1].tankId).toBe('far');
     });

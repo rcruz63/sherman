@@ -10,9 +10,27 @@ import {
   ShermanState,
   LogEntry,
   LogVerbosityMode,
+  CampaignProgress,
+  CampaignType,
+  CrewRole,
 } from '../types/game';
+import { missions } from '../data/missions';
 import mission1Raw from '../data/missions/mission1.json';
 import { loadMissionState, LoadMissionOptions } from '../core/rules/missionLoader';
+import {
+  createCampaign,
+  prepareCampaignNextMission,
+  advanceCampaignProgress,
+  isCampaignCompleted,
+} from '../core/rules/campaign';
+import {
+  saveGameToSlot,
+  loadGameFromSlot,
+  deleteSaveSlot,
+  renameSaveSlot,
+  duplicateSaveSlot,
+  getActiveSlotId,
+} from '../core/storage/gamePersistence';
 import {
   checkGameEndConditions,
   executePhase1,
@@ -41,6 +59,29 @@ export interface GameStoreState {
   combatLog: (string | LogEntry)[];
   logVerbosity: LogVerbosityMode;
   gameEndStatus: GameEndStatus | null;
+
+  // Multi-slot & Campaign Mode State
+  currentSlotId: string | null;
+  gameMode: 'single' | 'campaign';
+  campaignState: CampaignProgress | null;
+  isIntermissionOpen: boolean;
+  isSaveSlotsModalOpen: boolean;
+  isNewGameModalOpen: boolean;
+
+  // UI Modal Actions
+  setIntermissionOpen: (isOpen: boolean) => void;
+  setSaveSlotsModalOpen: (isOpen: boolean) => void;
+  setNewGameModalOpen: (isOpen: boolean) => void;
+
+  // Campaign & Slot Actions
+  startNewSingleMission: (missionId: number, slotName?: string) => void;
+  startNewCampaign: (type: CampaignType, options?: { missionIds?: number[]; count?: number; slotName?: string }) => void;
+  advanceCampaignMission: (replacedCrewRole?: CrewRole) => void;
+  loadSlot: (slotId: string) => boolean;
+  saveCurrentSlot: (customName?: string) => boolean;
+  deleteSlot: (slotId: string) => boolean;
+  renameSlot: (slotId: string, newName: string) => boolean;
+  duplicateSlot: (slotId: string, newName?: string) => string | null;
 
   // Store Actions
   loadMission: (missionData?: MissionJSON, options?: LoadMissionOptions) => void;
@@ -90,6 +131,254 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   combatLog: [],
   logVerbosity: 'compact',
   gameEndStatus: null,
+
+  currentSlotId: null,
+  gameMode: 'single',
+  campaignState: null,
+  isIntermissionOpen: false,
+  isSaveSlotsModalOpen: false,
+  isNewGameModalOpen: false,
+
+  setIntermissionOpen: (isOpen: boolean) => set({ isIntermissionOpen: isOpen }),
+  setSaveSlotsModalOpen: (isOpen: boolean) => set({ isSaveSlotsModalOpen: isOpen }),
+  setNewGameModalOpen: (isOpen: boolean) => set({ isNewGameModalOpen: isOpen }),
+
+  startNewSingleMission: (missionId: number, slotName?: string) => {
+    const targetMission = missions.find((m) => m.id === missionId) || missions[0];
+    const newSlotId = `slot_${Date.now()}`;
+    const boardState = loadMissionState(targetMission);
+    const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
+    const enemyLogs = boardState.enemyTanks.map((t) => {
+      const fName = facingNames[t.facing] || `${t.facing}`;
+      return `Despliegue ${t.type.toUpperCase()} #${t.spawnNumber}: Posición (${t.coord.q},${t.coord.r}), encaramiento ${fName}.`;
+    });
+    const startTile = boardState.tiles.get(`${boardState.sherman.coord.q},${boardState.sherman.coord.r}`);
+    boardState.shermanOperations = {
+      order: null,
+      sectionIndex: 0,
+      phaseStartTerrain: startTile?.terrain || 'field',
+      currentSection: null,
+      status: 'order_selection',
+      rolledDice: [],
+      availableDice: [],
+    };
+    const combatLog = [
+      `📋 Misión "${targetMission.title}" iniciada.`,
+      `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento NO (5).`,
+      ...enemyLogs,
+    ];
+
+    saveGameToSlot(newSlotId, {
+      name: slotName || `Misión ${missionId} - ${targetMission.title}`,
+      mode: 'single',
+      boardState,
+      combatLog,
+      campaignState: null,
+    });
+
+    set({
+      currentSlotId: newSlotId,
+      gameMode: 'single',
+      campaignState: null,
+      boardState,
+      combatLog,
+      gameEndStatus: null,
+      isNewGameModalOpen: false,
+      isSaveSlotsModalOpen: false,
+      isIntermissionOpen: false,
+    });
+  },
+
+  startNewCampaign: (type: CampaignType, options?: { missionIds?: number[]; count?: number; slotName?: string }) => {
+    const campaign = createCampaign(type, options);
+    const firstMissionId = campaign.missionSequence[0] || 1;
+    const targetMission = missions.find((m) => m.id === firstMissionId) || missions[0];
+    const newSlotId = `slot_${Date.now()}`;
+    const boardState = loadMissionState(targetMission);
+    const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
+    const enemyLogs = boardState.enemyTanks.map((t) => {
+      const fName = facingNames[t.facing] || `${t.facing}`;
+      return `Despliegue ${t.type.toUpperCase()} #${t.spawnNumber}: Posición (${t.coord.q},${t.coord.r}), encaramiento ${fName}.`;
+    });
+    const startTile = boardState.tiles.get(`${boardState.sherman.coord.q},${boardState.sherman.coord.r}`);
+    boardState.shermanOperations = {
+      order: null,
+      sectionIndex: 0,
+      phaseStartTerrain: startTile?.terrain || 'field',
+      currentSection: null,
+      status: 'order_selection',
+      rolledDice: [],
+      availableDice: [],
+    };
+
+    const typeNames: Record<CampaignType, string> = {
+      sequential: 'Campaña Histórica (1-13)',
+      custom: 'Campaña Personalizada',
+      random: `Campaña Aleatoria (${campaign.missionSequence.length} misiones)`,
+    };
+
+    const combatLog = [
+      `🎖️ ¡Comienza ${typeNames[type]}! [Secuencia: ${campaign.missionSequence.join(' ➔ ')}]`,
+      `📋 Misión 1/${campaign.missionSequence.length}: "${targetMission.title}"`,
+      `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento NO (5).`,
+      ...enemyLogs,
+    ];
+
+    saveGameToSlot(newSlotId, {
+      name: options?.slotName || `${typeNames[type]} - Misión ${firstMissionId}`,
+      mode: 'campaign',
+      boardState,
+      combatLog,
+      campaignState: campaign,
+    });
+
+    set({
+      currentSlotId: newSlotId,
+      gameMode: 'campaign',
+      campaignState: campaign,
+      boardState,
+      combatLog,
+      gameEndStatus: null,
+      isNewGameModalOpen: false,
+      isSaveSlotsModalOpen: false,
+      isIntermissionOpen: false,
+    });
+  },
+
+  advanceCampaignMission: (replacedCrewRole?: CrewRole) => {
+    const { boardState, campaignState, currentSlotId, combatLog } = get();
+    if (!boardState || !campaignState) return;
+
+    const currentMissionId = boardState.missionData?.id || 1;
+    const nextCampaign = advanceCampaignProgress(campaignState, currentMissionId, {
+      turns: boardState.currentTurn,
+      tanksDestroyed: boardState.enemyTanks.filter((t) => t.status === 'destroyed').length,
+      infantryEliminated: boardState.enemyInfantry.filter((i) => i.status === 'eliminated').length,
+    });
+
+    if (isCampaignCompleted(nextCampaign)) {
+      set({
+        campaignState: nextCampaign,
+        isIntermissionOpen: false,
+        gameEndStatus: {
+          isGameOver: true,
+          isVictory: true,
+          message: `🎖️ ¡VICTORIA TOTAL EN LA CAMPAÑA! Has completado con éxito todas las ${nextCampaign.missionSequence.length} misiones de la campaña. Turnos totales: ${nextCampaign.campaignStats.totalTurns}. ¡Honor a la tripulación del Sherman!`,
+        },
+      });
+      return;
+    }
+
+    const nextMissionId = nextCampaign.missionSequence[nextCampaign.currentMissionIndex];
+    const nextMissionData = missions.find((m) => m.id === nextMissionId) || missions[0];
+
+    const nextBoardState = prepareCampaignNextMission(nextMissionData, boardState.sherman, replacedCrewRole);
+
+    const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
+    const enemyLogs = nextBoardState.enemyTanks.map((t) => {
+      const fName = facingNames[t.facing] || `${t.facing}`;
+      return `Despliegue ${t.type.toUpperCase()} #${t.spawnNumber}: Posición (${t.coord.q},${t.coord.r}), encaramiento ${fName}.`;
+    });
+
+    const replacedMsg = replacedCrewRole
+      ? `🎖️ Reemplazo de tripulación: ${nextBoardState.sherman.crew[replacedCrewRole]?.name} (${replacedCrewRole.toUpperCase()}) se une a la tripulación como nuevo recluta.`
+      : '';
+
+    const damageSummary = `⚙️ Estado del tanque trasladado: Torreta ${
+      nextBoardState.sherman.isTurretDamaged ? 'DAÑADA' : 'OK'
+    } | Inmovilizado: ${nextBoardState.sherman.isImmobilized ? 'SÍ' : 'NO'} | Nivel Fuego: 🔥 ${
+      nextBoardState.sherman.fireLevel
+    } | Cañón: ${nextBoardState.sherman.isLoaded ? '⚡ CARGADO' : 'DESCARGADO'}.`;
+
+    const newCombatLog = [
+      ...combatLog,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `🎖️ Avanzando en Campaña a Misión ${nextCampaign.currentMissionIndex + 1}/${nextCampaign.missionSequence.length}: "${nextMissionData.title}"`,
+      replacedMsg,
+      damageSummary,
+      `📍 Despliegue inicial Sherman en (${nextBoardState.sherman.coord.q},${nextBoardState.sherman.coord.r}), encaramiento NO (5).`,
+      ...enemyLogs,
+    ].filter(Boolean);
+
+    if (currentSlotId) {
+      saveGameToSlot(currentSlotId, {
+        mode: 'campaign',
+        boardState: nextBoardState,
+        combatLog: newCombatLog,
+        campaignState: nextCampaign,
+      });
+    }
+
+    set({
+      boardState: nextBoardState,
+      campaignState: nextCampaign,
+      combatLog: newCombatLog,
+      gameEndStatus: null,
+      isIntermissionOpen: false,
+    });
+  },
+
+  loadSlot: (slotId: string) => {
+    const loaded = loadGameFromSlot(slotId);
+    if (!loaded) return false;
+
+    set({
+      currentSlotId: slotId,
+      gameMode: loaded.metadata.mode,
+      campaignState: loaded.campaignState,
+      boardState: loaded.boardState,
+      combatLog: [...loaded.combatLog, `📁 Partida "${loaded.metadata.name}" cargada con éxito.`],
+      gameEndStatus: null,
+      isSaveSlotsModalOpen: false,
+      isNewGameModalOpen: false,
+      isIntermissionOpen: false,
+    });
+    return true;
+  },
+
+  saveCurrentSlot: (customName?: string) => {
+    const { currentSlotId, gameMode, campaignState, boardState, combatLog } = get();
+    if (!boardState) return false;
+    let slotId = currentSlotId;
+    if (!slotId) {
+      slotId = `slot_${Date.now()}`;
+      set({ currentSlotId: slotId });
+    }
+
+    const success = saveGameToSlot(slotId, {
+      name: customName,
+      mode: gameMode,
+      boardState,
+      combatLog,
+      campaignState,
+    });
+
+    if (success) {
+      get().addLogMessage('💾 Partida guardada correctamente en el slot activo.');
+    }
+    return success;
+  },
+
+  deleteSlot: (slotId: string) => {
+    const success = deleteSaveSlot(slotId);
+    if (success && get().currentSlotId === slotId) {
+      const activeId = getActiveSlotId();
+      if (activeId) {
+        get().loadSlot(activeId);
+      } else {
+        set({ currentSlotId: null });
+      }
+    }
+    return success;
+  },
+
+  renameSlot: (slotId: string, newName: string) => {
+    return renameSaveSlot(slotId, newName);
+  },
+
+  duplicateSlot: (slotId: string, newName?: string) => {
+    return duplicateSaveSlot(slotId, newName);
+  },
 
   loadMission: (missionData = mission1Data, options?: LoadMissionOptions) => {
     const boardState = loadMissionState(missionData, options);
@@ -608,8 +897,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     if (!boardState || !boardState.shermanOperations) return;
     const ops = boardState.shermanOperations;
     if (!ops.currentSection) return;
-
-    const diceInfo = calculateSectionDice(ops.currentSection, ops.phaseStartTerrain, boardState.sherman);
+    const diceInfo = calculateSectionDice(
+      ops.currentSection,
+      ops.phaseStartTerrain,
+      boardState.sherman,
+      boardState.missionData?.shermanDicePool
+    );
 
     if (diceInfo.isImmobilized) {
       addLogMessage('⚠️ Sherman Inmovilizado: La sección de Maniobra se omite automáticamente (0 dados).');

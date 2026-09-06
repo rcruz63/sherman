@@ -3,8 +3,25 @@ import mission1Raw from '../../../data/missions/mission1.json';
 import mission2Raw from '../../../data/missions/mission2.json';
 import { MissionJSON } from '../../../types/game';
 import { loadMissionState } from '../missionLoader';
-import { prepareCampaignNextMission } from '../campaign';
-import { saveGameStateToStorage, loadGameStateFromStorage, clearSavedGameState } from '../../storage/gamePersistence';
+import {
+  createCampaign,
+  prepareCampaignNextMission,
+  advanceCampaignProgress,
+  isCampaignCompleted,
+  getShermanCarryOverSummary,
+} from '../campaign';
+import {
+  listSaveSlots,
+  saveGameToSlot,
+  loadGameFromSlot,
+  deleteSaveSlot,
+  renameSaveSlot,
+  duplicateSaveSlot,
+  exportSlotToJson,
+  exportAllSlotsToJson,
+  importSlotFromJson,
+  loadGameStateFromStorage,
+} from '../../storage/gamePersistence';
 
 const mission1 = mission1Raw as MissionJSON;
 const mission2 = mission2Raw as MissionJSON;
@@ -17,18 +34,75 @@ const localStorageMock = (() => {
     setItem: (key: string, value: string) => { store[key] = value.toString(); },
     removeItem: (key: string) => { delete store[key]; },
     clear: () => { store = {}; },
+    key: (index: number) => Object.keys(store)[index] || null,
+    get length() { return Object.keys(store).length; },
   };
 })();
 
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
-describe('Campaign Mode Rules & Local Persistence', () => {
+describe('Campaign Mode Rules & Multi-Slot Persistence', () => {
   beforeEach(() => {
     localStorageMock.clear();
   });
 
-  describe('Campaign Transition Rules (prepareCampaignNextMission)', () => {
-    it('carries over damage flags and allows replacing 1 KIA crew member', () => {
+  describe('Campaign Generation & Progression', () => {
+    it('creates sequential campaign with 13 missions', () => {
+      const camp = createCampaign('sequential');
+      expect(camp.active).toBe(true);
+      expect(camp.type).toBe('sequential');
+      expect(camp.missionSequence).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+      expect(camp.currentMissionIndex).toBe(0);
+      expect(isCampaignCompleted(camp)).toBe(false);
+    });
+
+    it('creates random campaign with requested count', () => {
+      const camp = createCampaign('random', { count: 5 });
+      expect(camp.missionSequence.length).toBe(5);
+      const unique = new Set(camp.missionSequence);
+      expect(unique.size).toBe(5);
+    });
+
+    it('creates custom campaign with chosen mission sequence', () => {
+      const camp = createCampaign('custom', { missionIds: [1, 4, 7] });
+      expect(camp.missionSequence).toEqual([1, 4, 7]);
+    });
+
+    it('advances campaign and aggregates statistics', () => {
+      let camp = createCampaign('custom', { missionIds: [1, 2] });
+      expect(camp.currentMissionIndex).toBe(0);
+
+      camp = advanceCampaignProgress(camp, 1, {
+        turns: 6,
+        tanksDestroyed: 2,
+        infantryEliminated: 1,
+        crewCasualtiesCount: 1,
+      });
+
+      expect(camp.currentMissionIndex).toBe(1);
+      expect(camp.completedMissionIds).toEqual([1]);
+      expect(camp.campaignStats.totalTurns).toBe(6);
+      expect(camp.campaignStats.tanksDestroyed).toBe(2);
+      expect(isCampaignCompleted(camp)).toBe(false);
+
+      // Complete last mission
+      camp = advanceCampaignProgress(camp, 2, {
+        turns: 4,
+        tanksDestroyed: 1,
+        infantryEliminated: 0,
+        crewCasualtiesCount: 0,
+      });
+
+      expect(camp.currentMissionIndex).toBe(2);
+      expect(camp.completedMissionIds).toEqual([1, 2]);
+      expect(camp.campaignStats.totalTurns).toBe(10);
+      expect(camp.campaignStats.tanksDestroyed).toBe(3);
+      expect(isCampaignCompleted(camp)).toBe(true);
+    });
+  });
+
+  describe('Campaign Inter-Mission Transition Rules (Rulebook Page 19)', () => {
+    it('carries over turret damage, immobilized, fire level, loaded gun, and allows 1 KIA replacement', () => {
       const board1 = loadMissionState(mission1);
 
       // Simulate damage and status in Mission 1
@@ -40,6 +114,14 @@ describe('Campaign Mode Rules & Local Persistence', () => {
       // Mark Commander & Driver as KIA
       board1.sherman.crew.commander.status = 'kia';
       board1.sherman.crew.driver.status = 'kia';
+
+      const summary = getShermanCarryOverSummary(board1.sherman);
+      expect(summary.isTurretDamaged).toBe(true);
+      expect(summary.isImmobilized).toBe(true);
+      expect(summary.fireLevel).toBe(2);
+      expect(summary.isLoaded).toBe(true);
+      expect(summary.kiaCrew.length).toBe(2);
+      expect(summary.activeCrewCount).toBe(3);
 
       // Transition to Mission 2, choosing to replace Commander
       const board2 = prepareCampaignNextMission(mission2, board1.sherman, 'commander');
@@ -56,30 +138,123 @@ describe('Campaign Mode Rules & Local Persistence', () => {
     });
   });
 
-  describe('Local Storage Persistence System', () => {
-    it('saves and restores exact game state and combat log', () => {
-      const boardState = loadMissionState(mission1);
-      boardState.currentTurn = 4;
-      boardState.sherman.isLoaded = true;
+  describe('Multi-Slot Local Storage Persistence System', () => {
+    it('saves and loads multiple independent slots', () => {
+      const board1 = loadMissionState(mission1);
+      board1.currentTurn = 3;
+      const log1 = ['Slot 1 turn 3'];
 
-      const log = ['Turn 4 started', 'Sherman loaded cannon'];
+      const board2 = loadMissionState(mission2);
+      board2.currentTurn = 5;
+      const log2 = ['Slot 2 turn 5'];
 
-      const saved = saveGameStateToStorage(boardState, log);
-      expect(saved).toBe(true);
+      saveGameToSlot('slot_alpha', {
+        name: 'Partida Alpha',
+        mode: 'single',
+        boardState: board1,
+        combatLog: log1,
+      });
 
-      const restored = loadGameStateFromStorage();
-      expect(restored).not.toBeNull();
-      expect(restored?.boardState.currentTurn).toBe(4);
-      expect(restored?.boardState.sherman.isLoaded).toBe(true);
-      expect(restored?.combatLog).toEqual(log);
+      saveGameToSlot('slot_beta', {
+        name: 'Partida Beta (Campaña)',
+        mode: 'campaign',
+        boardState: board2,
+        combatLog: log2,
+        campaignState: createCampaign('sequential'),
+      });
+
+      const slots = listSaveSlots();
+      expect(slots.length).toBe(2);
+
+      const loadedAlpha = loadGameFromSlot('slot_alpha');
+      expect(loadedAlpha?.metadata.name).toBe('Partida Alpha');
+      expect(loadedAlpha?.boardState.currentTurn).toBe(3);
+      expect(loadedAlpha?.metadata.mode).toBe('single');
+
+      const loadedBeta = loadGameFromSlot('slot_beta');
+      expect(loadedBeta?.metadata.name).toBe('Partida Beta (Campaña)');
+      expect(loadedBeta?.boardState.currentTurn).toBe(5);
+      expect(loadedBeta?.metadata.mode).toBe('campaign');
+      expect(loadedBeta?.campaignState?.active).toBe(true);
     });
 
-    it('clears saved state correctly', () => {
-      const boardState = loadMissionState(mission1);
-      saveGameStateToStorage(boardState, ['Log test']);
+    it('renames, duplicates, and deletes slots properly', () => {
+      const board = loadMissionState(mission1);
+      saveGameToSlot('slot_1', {
+        name: 'Original',
+        mode: 'single',
+        boardState: board,
+        combatLog: ['Test log'],
+      });
 
-      clearSavedGameState();
-      expect(loadGameStateFromStorage()).toBeNull();
+      renameSaveSlot('slot_1', 'Nuevo Nombre');
+      expect(loadGameFromSlot('slot_1')?.metadata.name).toBe('Nuevo Nombre');
+
+      const dupId = duplicateSaveSlot('slot_1', 'Copia de Seguridad');
+      expect(dupId).not.toBeNull();
+      expect(listSaveSlots().length).toBe(2);
+      if (dupId) {
+        expect(loadGameFromSlot(dupId)?.metadata.name).toBe('Copia de Seguridad');
+      }
+
+      deleteSaveSlot('slot_1');
+      expect(listSaveSlots().length).toBe(1);
+      expect(loadGameFromSlot('slot_1')).toBeNull();
+    });
+
+    it('exports and imports JSON single saves and backup bundles', () => {
+      const board = loadMissionState(mission1);
+      saveGameToSlot('slot_export', {
+        name: 'Partida Exportable',
+        mode: 'single',
+        boardState: board,
+        combatLog: ['Export log'],
+      });
+
+      const jsonSingle = exportSlotToJson('slot_export');
+      expect(jsonSingle).not.toBeNull();
+
+      const backupAll = exportAllSlotsToJson();
+      expect(backupAll).toContain('Partida Exportable');
+
+      localStorageMock.clear();
+      expect(listSaveSlots().length).toBe(0);
+
+      const importRes = importSlotFromJson(jsonSingle!);
+      expect(importRes.success).toBe(true);
+      expect(listSaveSlots().length).toBe(1);
+      expect(listSaveSlots()[0].name).toContain('Partida Exportable');
+
+      // Test importing full backup bundle
+      const importBundleRes = importSlotFromJson(backupAll);
+      expect(importBundleRes.success).toBe(true);
+    });
+
+    it('auto-migrates legacy v1 single save to slot system', () => {
+      const legacyPayload = {
+        boardState: {
+          tiles: Array.from(loadMissionState(mission1).tiles.entries()),
+          sherman: loadMissionState(mission1).sherman,
+          enemyTanks: loadMissionState(mission1).enemyTanks,
+          enemyInfantry: loadMissionState(mission1).enemyInfantry,
+          currentTurn: 7,
+          currentPhase: 'PHASE_1_EVENT',
+          missionData: mission1,
+        },
+        combatLog: ['Legacy turn 7'],
+        savedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem('sherman_game_save_v1', JSON.stringify(legacyPayload));
+
+      const slots = listSaveSlots();
+      expect(slots.length).toBe(1);
+      expect(slots[0].currentTurn).toBe(7);
+
+      const loaded = loadGameStateFromStorage();
+      expect(loaded?.boardState.currentTurn).toBe(7);
+      expect(loaded?.combatLog).toEqual(['Legacy turn 7']);
     });
   });
 });
+

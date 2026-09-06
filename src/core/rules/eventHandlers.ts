@@ -20,6 +20,7 @@ import {
   DamageCheckResult,
 } from './combat';
 import { SECTOR_NAMES } from './logUtils';
+import { TANK_STATS } from './missionLoader';
 
 export interface MinesEventResult {
   triggered: boolean;
@@ -642,21 +643,17 @@ export function handleSpawnTankEvent(
   }
 
   const facing: Facing = targetTile.blackSpawnFacing ?? 3;
-  const armor =
-    tankType === 'panzerIV'
-      ? { D: 6, LD: 4, LT: 4, T: 4 }
-      : { D: 5, LD: 3, LT: 3, T: 3 };
-  const penetration = tankType === 'panzerIV' ? 6 : 5;
+  const stats = TANK_STATS[tankType === 'panzerIV' ? 'PANZER_IV' : 'PANZER_III'];
 
   const newTank: EnemyTank = {
     id: `${tankType}-spawn-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     type: tankType,
     coord: { q, r },
     facing,
-    armor,
-    penetration,
-    size: 3,
-    baseDice: 2,
+    armor: stats.armor,
+    penetration: stats.penetration,
+    size: stats.size,
+    baseDice: stats.baseDice,
     hasSmoke: false,
     isHullDown: false,
     status: 'operational',

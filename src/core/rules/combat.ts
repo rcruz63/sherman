@@ -184,11 +184,8 @@ export function resolveDamageEffect(
   roll: number
 ): DamageEffectResult {
   if (targetType === 'germanTank') {
-    if (roll <= 2) {
-      return { outcome: 'DAMAGED', description: 'Dañado (si ya estaba dañado > Destruido)' };
-    }
     if (roll <= 4) {
-      return { outcome: 'TURRET_DAMAGED', description: 'Torreta Dañada' };
+      return { outcome: 'DAMAGED', description: 'Dañado (si ya estaba dañado > Destruido)' };
     }
     return { outcome: 'DESTROYED', description: 'Tanque Destruido' };
   } else {

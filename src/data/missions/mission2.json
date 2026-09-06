@@ -447,9 +447,9 @@
       "mud": 0
     },
     "attack": {
-      "road": 2,
+      "road": 1,
       "field": 2,
-      "mud": 1
+      "mud": 2
     },
     "misc": {
       "road": 1,

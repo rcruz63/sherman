@@ -148,5 +148,38 @@ describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
       expect(gameEnd.isGameOver).toBe(true);
       expect(gameEnd.isVictory).toBe(true);
     });
+
+    it('verifies Mission 11, 12, 13 dice pools and event resolution tables', () => {
+      // Mission 11
+      expect(mission11.shermanDicePool.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(mission11.shermanDicePool.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(mission11.shermanDicePool.misc).toEqual({ road: 1, field: 2, mud: 1 });
+      expect(mission11.endOfTurnEvents.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('MINES');
+      expect(mission11.endOfTurnEvents.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('NO_EVENT');
+      expect(mission11.endOfTurnEvents.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(mission11.endOfTurnEvents.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
+      expect(mission11.endOfTurnEvents.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
+
+      // Mission 12
+      expect(mission12.shermanDicePool.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(mission12.shermanDicePool.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(mission12.shermanDicePool.misc).toEqual({ road: 1, field: 2, mud: 1 });
+      expect(mission12.endOfTurnEvents.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('MINES');
+      expect(mission12.endOfTurnEvents.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
+      expect(mission12.endOfTurnEvents.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(mission12.endOfTurnEvents.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(mission12.endOfTurnEvents.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
+
+      // Mission 13
+      expect(mission13.shermanDicePool.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(mission13.shermanDicePool.attack).toEqual({ road: 2, field: 1, mud: 2 });
+      expect(mission13.shermanDicePool.misc).toEqual({ road: 1, field: 2, mud: 1 });
+      expect(mission13.endOfTurnEvents.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('SNIPER');
+      expect(mission13.endOfTurnEvents.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(mission13.endOfTurnEvents.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
+      expect(mission13.endOfTurnEvents.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(mission13.endOfTurnEvents.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('STUKA');
+      expect(mission13.endOfTurnEvents.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
+    });
   });
 });

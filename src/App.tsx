@@ -5,6 +5,9 @@ import { ShermanDashboard } from './components/dashboard/ShermanDashboard';
 import { PhaseConsole } from './components/controls/PhaseConsole';
 import { CombatLog } from './components/log/CombatLog';
 import { GameOverModal } from './components/modal/GameOverModal';
+import { NewGameModal } from './components/modal/NewGameModal';
+import { SaveSlotsModal } from './components/modal/SaveSlotsModal';
+import { CampaignIntermissionModal } from './components/modal/CampaignIntermissionModal';
 import { MapEditorModal } from './components/editor/MapEditorModal';
 import { BoardHex } from './types/game';
 import { calculateHitDifficulty } from './core/rules/combat';
@@ -12,7 +15,22 @@ import { missions } from './data/missions';
 import { saveGameStateToStorage, loadGameStateFromStorage } from './core/storage/gamePersistence';
 
 export const App: React.FC = () => {
-  const { boardState, combatLog, loadMission, addLogMessage } = useGameStore();
+  const {
+    boardState,
+    combatLog,
+    gameMode,
+    campaignState,
+    loadMission,
+    addLogMessage,
+    isIntermissionOpen,
+    isSaveSlotsModalOpen,
+    isNewGameModalOpen,
+    setIntermissionOpen,
+    setSaveSlotsModalOpen,
+    setNewGameModalOpen,
+    saveCurrentSlot,
+  } = useGameStore();
+
   const [selectedTile, setSelectedTile] = useState<BoardHex | null>(null);
   const [selectedMissionId, setSelectedMissionId] = useState<number>(1);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
@@ -24,6 +42,9 @@ export const App: React.FC = () => {
       useGameStore.setState({
         boardState: saved.boardState,
         combatLog: [...saved.combatLog, '📁 Partida guardada restaurada automáticamente.'],
+        gameMode: saved.campaignState?.active ? 'campaign' : 'single',
+        campaignState: saved.campaignState || null,
+        currentSlotId: saved.slotMetadata?.id || null,
       });
       if (saved.boardState.missionData?.id) {
         setSelectedMissionId(saved.boardState.missionData.id);
@@ -37,9 +58,9 @@ export const App: React.FC = () => {
   // Auto-save game state to localStorage whenever boardState changes
   useEffect(() => {
     if (boardState) {
-      saveGameStateToStorage(boardState, combatLog);
+      saveGameStateToStorage(boardState, combatLog, campaignState);
     }
-  }, [boardState, combatLog]);
+  }, [boardState, combatLog, campaignState]);
 
   if (!boardState) {
     return (
@@ -61,7 +82,7 @@ export const App: React.FC = () => {
 
   const handleManualSave = () => {
     if (boardState) {
-      const success = saveGameStateToStorage(boardState, combatLog);
+      const success = saveCurrentSlot();
       if (success) {
         addLogMessage('💾 Partida guardada manualmente en el almacenamiento local (localStorage).');
       }
@@ -69,11 +90,27 @@ export const App: React.FC = () => {
   };
 
   const currentMission = boardState.missionData || missions[0];
+  const isCampaign = gameMode === 'campaign' && campaignState?.active;
 
   return (
     <div className="min-h-screen max-h-screen bg-slate-950 text-slate-100 p-2 md:p-4 font-sans flex flex-col gap-3 overflow-hidden">
-      {/* Game Over Modal Overlay */}
+      {/* Modal Overlays */}
       <GameOverModal />
+      <NewGameModal
+        isOpen={isNewGameModalOpen}
+        onClose={() => setNewGameModalOpen(false)}
+      />
+      <SaveSlotsModal
+        isOpen={isSaveSlotsModalOpen}
+        onClose={() => setSaveSlotsModalOpen(false)}
+        onOpenNewGame={() => setNewGameModalOpen(true)}
+      />
+      <CampaignIntermissionModal
+        isOpen={isIntermissionOpen}
+        onClose={() => setIntermissionOpen(false)}
+        onOpenSlots={() => setSaveSlotsModalOpen(true)}
+      />
+      <MapEditorModal isOpen={isEditorOpen} onClose={() => setIsEditorOpen(false)} />
 
       {/* Header: Compact Mission Title, Briefing, Objectives & Quick Controls */}
       <header className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 shadow-lg shrink-0">
@@ -81,12 +118,19 @@ export const App: React.FC = () => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center font-bold text-lg text-white shadow shrink-0">
-              🛡️
+              {isCampaign ? '🎖️' : '🛡️'}
             </div>
             <div className="min-w-0">
-              <h1 className="text-base font-extrabold text-amber-400 tracking-wide truncate">
-                {currentMission.title}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-extrabold text-amber-400 tracking-wide truncate">
+                  {currentMission.title}
+                </h1>
+                {isCampaign && (
+                  <span className="px-2 py-0.5 bg-indigo-900/60 border border-indigo-500/40 text-indigo-300 rounded text-[10px] font-extrabold uppercase shrink-0">
+                    Campaña {(campaignState?.currentMissionIndex ?? 0) + 1}/{campaignState?.missionSequence.length}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-300 truncate">
                 {currentMission.briefing}
               </p>
@@ -108,6 +152,20 @@ export const App: React.FC = () => {
 
         {/* Right: Mission Selector & Action Controls */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <button
+            onClick={() => setNewGameModalOpen(true)}
+            className="min-h-[38px] px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center gap-1.5"
+          >
+            <span>⚔️</span> Nueva Partida
+          </button>
+
+          <button
+            onClick={() => setSaveSlotsModalOpen(true)}
+            className="min-h-[38px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5"
+          >
+            <span>📁</span> Partidas
+          </button>
+
           <select
             value={selectedMissionId}
             onChange={(e) => {
@@ -133,7 +191,7 @@ export const App: React.FC = () => {
             onClick={() => setIsEditorOpen(true)}
             className="min-h-[38px] px-3 py-1.5 bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 font-bold text-xs rounded-lg border border-indigo-700 transition flex items-center gap-1.5 shadow"
           >
-            <span>🛠️</span> Editor de Mapas
+            <span>🛠️</span> Editor
           </button>
 
           <button

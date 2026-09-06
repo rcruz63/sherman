@@ -43,6 +43,19 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(gameEnd.isVictory).toBe(false);
       expect(gameEnd.message).toContain('camión de suministros alemán ha escapado');
     });
+
+    it('verifies Mission 5 dice pool and event resolution table', () => {
+      const dice = mission5.shermanDicePool;
+      expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
+
+      const events = mission5.endOfTurnEvents;
+      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('MOVE_TRUCK');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_IV');
+    });
   });
 
   describe('Mission 6 - Averiado y Rodeado', () => {
@@ -52,6 +65,22 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(boardState.sherman.isImmobilized).toBe(true);
       expect(boardState.enemyTanks).toHaveLength(3);
       expect(boardState.enemyTanks.every((t) => t.type === 'panzerIII')).toBe(true);
+    });
+
+    it('verifies Mission 6 dice pool and event resolution table', () => {
+      const dice = mission6.shermanDicePool;
+      expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
+
+      const events = mission6.endOfTurnEvents;
+      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('SNIPER');
+      expect(events.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
+      expect(events.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('MINES');
+      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
+      expect(events.find((e) => 12 >= e.rollMin && 12 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
     });
   });
 
@@ -66,6 +95,20 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       const bridgeRule = boardState.missionData?.specialRules?.bridge;
       expect(bridgeRule).toBeDefined();
       expect(bridgeRule?.allowedEntryDirections).toEqual([0, 3]);
+    });
+
+    it('verifies Mission 7 dice pool and event resolution table', () => {
+      const dice = mission7.shermanDicePool;
+      expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
+
+      const events = mission7.endOfTurnEvents;
+      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('MINES');
+      expect(events.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
+      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
     });
   });
 
@@ -84,9 +127,24 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       boardState.sherman.coord = { q: 1, r: 0 };
 
       const gameEnd = checkGameEndConditions(boardState);
+
       expect(gameEnd.isGameOver).toBe(true);
       expect(gameEnd.isVictory).toBe(true);
       expect(gameEnd.message).toContain('VICTORIA TÁCTICA');
+    });
+
+    it('verifies Mission 8 dice pool and event resolution table', () => {
+      const dice = mission8.shermanDicePool;
+      expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
+
+      const events = mission8.endOfTurnEvents;
+      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('MINES');
+      expect(events.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
+      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
     });
   });
 });
