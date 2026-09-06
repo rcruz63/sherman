@@ -1,0 +1,118 @@
+{
+  "id": 9,
+  "title": "Misión 9 - Al Otro Lado del Río",
+  "briefing": "Cruza el río y asegura el paso eliminando a todos los tanques alemanes antes de salir por la flecha roja. La infantería enemiga ocupa todos los edificios circundantes.",
+  "map": {
+    "orientation": "pointy-topped",
+    "columns": 5,
+    "rows": 9,
+    "defaultTerrain": "FIELD"
+  },
+  "victoryConditions": {
+    "clearAllEnemyTanks": true,
+    "requireMapExit": true,
+    "exitHex": { "q": 1, "r": 0 }
+  },
+  "defeatConditions": {
+    "shermanDestroyed": true,
+    "crewAllKIA": true
+  },
+  "specialRules": {
+    "bridge": {
+      "hex": { "q": 1, "r": 4 },
+      "isRoad": true,
+      "allowedEntryDirections": [0, 3],
+      "allowedExitDirections": [0, 3]
+    }
+  },
+  "playerDeployment": {
+    "unit": "SHERMAN",
+    "hex": { "q": 1, "r": 8 },
+    "facing": 0,
+    "initialStatus": {
+      "loaded": false,
+      "fireLevel": 0,
+      "turretDamaged": false,
+      "immobilized": false,
+      "smoke": false,
+      "hullDown": false
+    },
+    "crew": [
+      { "id": 1, "name": "Comandante", "position": "INTERIOR", "kia": false },
+      { "id": 2, "name": "Cargador", "kia": false },
+      { "id": 3, "name": "Artillero", "kia": false },
+      { "id": 4, "name": "Conductor", "kia": false },
+      { "id": 5, "name": "Asistente Conductor", "kia": false }
+    ]
+  },
+  "enemyDeployment": {
+    "tanks": [
+      { "type": "TIGER", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 },
+      { "type": "PANZER_IV", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 }
+    ],
+    "infantry": [
+      { "spawnMethod": "ALL_BUILDING_HEXES", "count": 4 }
+    ]
+  },
+  "spawnPoints": {
+    "blackNumbers": [
+      { "number": 1, "hex": { "q": 1, "r": 1 }, "facing": 3 },
+      { "number": 2, "hex": { "q": 0, "r": 2 }, "facing": 2 },
+      { "number": 3, "hex": { "q": 2, "r": 2 }, "facing": 4 },
+      { "number": 4, "hex": { "q": 0, "r": 5 }, "facing": 1 },
+      { "number": 5, "hex": { "q": 2, "r": 5 }, "facing": 5 },
+      { "number": 6, "hex": { "q": 1, "r": 5 }, "facing": 3 }
+    ],
+    "redNumbers": [
+      { "number": 1, "hex": { "q": 0, "r": 3 } },
+      { "number": 2, "hex": { "q": 2, "r": 3 } },
+      { "number": 3, "hex": { "q": 1, "r": 3 } },
+      { "number": 4, "hex": { "q": 0, "r": 6 } },
+      { "number": 5, "hex": { "q": 2, "r": 6 } },
+      { "number": 6, "hex": { "q": 1, "r": 6 } }
+    ]
+  },
+  "shermanDicePool": {
+    "maneuver": { "road": 2, "field": 1, "mud": 0 },
+    "attack": { "road": 2, "field": 2, "mud": 1 },
+    "misc": { "road": 1, "field": 2, "mud": 1 }
+  },
+  "endOfTurnEvents": [
+    {
+      "rollMin": 2,
+      "rollMax": 4,
+      "type": "SNIPER",
+      "description": "Francotirador: Si Cte = A y en línea de visión de cualquier infantería (cualquier distancia), queda KIA."
+    },
+    {
+      "rollMin": 5,
+      "rollMax": 5,
+      "type": "MINES",
+      "description": "¡Minas! Si el Sherman está en Carretera y no Inmovilizado, impacto automático (Pen 0 vs BL 4)."
+    },
+    {
+      "rollMin": 6,
+      "rollMax": 6,
+      "type": "MECHANICAL_FAILURE",
+      "description": "Fallo mecánico: El Sherman queda Inmovilizado si no lo estaba."
+    },
+    {
+      "rollMin": 7,
+      "rollMax": 9,
+      "type": "INFANTRY_ATTACK",
+      "description": "Toda infantería alemana adyacente ataca: Impacto 2d6 a Distancia 1; ¿Daños? con Pen 1 vs BL del Sherman."
+    },
+    {
+      "rollMin": 10,
+      "rollMax": 10,
+      "type": "COMMANDER_ORDER",
+      "description": "Si el Comandante no está KIA, realiza 1 acción entre CARGAR, REPARAR o EXTINGUIR."
+    },
+    {
+      "rollMin": 11,
+      "rollMax": 12,
+      "type": "STUKA",
+      "description": "Si Comandante = A, tirada 2d6 con 6+ derriba Stuka. Si no, impacto con 8+ (Pen 1 vs BL 4)."
+    }
+  ]
+}

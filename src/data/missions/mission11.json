@@ -1,0 +1,95 @@
+{
+  "id": 11,
+  "title": "Misión 11 - Gladiadores de Acero",
+  "briefing": "Duelo a muerte en terreno abierto. Destruye todos los tanques alemanes presentes en el mapa (un Tiger, un Panzer IV y un Panzer III). No hay retirada.",
+  "map": {
+    "orientation": "pointy-topped",
+    "columns": 5,
+    "rows": 9,
+    "defaultTerrain": "FIELD"
+  },
+  "victoryConditions": {
+    "clearAllEnemyTanks": true,
+    "requireMapExit": false
+  },
+  "defeatConditions": {
+    "shermanDestroyed": true,
+    "crewAllKIA": true
+  },
+  "playerDeployment": {
+    "unit": "SHERMAN",
+    "hex": { "q": 1, "r": 8 },
+    "facing": 0,
+    "initialStatus": {
+      "loaded": false,
+      "fireLevel": 0,
+      "turretDamaged": false,
+      "immobilized": false,
+      "smoke": false,
+      "hullDown": false
+    },
+    "crew": [
+      { "id": 1, "name": "Comandante", "position": "INTERIOR", "kia": false },
+      { "id": 2, "name": "Cargador", "kia": false },
+      { "id": 3, "name": "Artillero", "kia": false },
+      { "id": 4, "name": "Conductor", "kia": false },
+      { "id": 5, "name": "Asistente Conductor", "kia": false }
+    ]
+  },
+  "enemyDeployment": {
+    "tanks": [
+      { "type": "TIGER", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 },
+      { "type": "PANZER_IV", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 },
+      { "type": "PANZER_III", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 }
+    ],
+    "infantry": []
+  },
+  "spawnPoints": {
+    "blackNumbers": [
+      { "number": 1, "hex": { "q": 1, "r": 1 }, "facing": 3 },
+      { "number": 2, "hex": { "q": 0, "r": 3 }, "facing": 2 },
+      { "number": 3, "hex": { "q": 2, "r": 3 }, "facing": 4 },
+      { "number": 4, "hex": { "q": 0, "r": 5 }, "facing": 1 },
+      { "number": 5, "hex": { "q": 2, "r": 5 }, "facing": 5 },
+      { "number": 6, "hex": { "q": 1, "r": 4 }, "facing": 3 }
+    ],
+    "redNumbers": []
+  },
+  "shermanDicePool": {
+    "maneuver": { "road": 2, "field": 1, "mud": 0 },
+    "attack": { "road": 2, "field": 2, "mud": 1 },
+    "misc": { "road": 1, "field": 2, "mud": 1 }
+  },
+  "endOfTurnEvents": [
+    {
+      "rollMin": 2,
+      "rollMax": 5,
+      "type": "MINES",
+      "description": "¡Minas! Si el Sherman está en Carretera y no Inmovilizado, impacto automático (Pen 0 vs BL 4)."
+    },
+    {
+      "rollMin": 6,
+      "rollMax": 7,
+      "type": "NO_EVENT",
+      "description": "No ocurre ningún evento en este turno."
+    },
+    {
+      "rollMin": 8,
+      "rollMax": 9,
+      "type": "COMMANDER_ORDER",
+      "description": "Si el Comandante no está KIA, realiza 1 acción entre CARGAR, REPARAR o EXTINGUIR."
+    },
+    {
+      "rollMin": 10,
+      "rollMax": 10,
+      "type": "MECHANICAL_FAILURE",
+      "description": "Fallo mecánico: El Sherman queda Inmovilizado si no lo estaba."
+    },
+    {
+      "rollMin": 11,
+      "rollMax": 12,
+      "type": "STUKA",
+      "description": "Si Comandante = A, tirada 2d6 con 6+ derriba Stuka. Si no, impacto con 8+ (Pen 1 vs BL 4)."
+    }
+  ]
+}
