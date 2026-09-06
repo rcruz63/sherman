@@ -5,6 +5,7 @@ import { ShermanDashboard } from './components/dashboard/ShermanDashboard';
 import { PhaseConsole } from './components/controls/PhaseConsole';
 import { CombatLog } from './components/log/CombatLog';
 import { GameOverModal } from './components/modal/GameOverModal';
+import { MapEditorModal } from './components/editor/MapEditorModal';
 import { BoardHex } from './types/game';
 import { calculateHitDifficulty } from './core/rules/combat';
 import { missions } from './data/missions';
@@ -14,6 +15,7 @@ export const App: React.FC = () => {
   const { boardState, combatLog, loadMission, addLogMessage } = useGameStore();
   const [selectedTile, setSelectedTile] = useState<BoardHex | null>(null);
   const [selectedMissionId, setSelectedMissionId] = useState<number>(1);
+  const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
 
   useEffect(() => {
     // Try restoring saved game state on startup if present
@@ -128,6 +130,13 @@ export const App: React.FC = () => {
           </div>
 
           <button
+            onClick={() => setIsEditorOpen(true)}
+            className="min-h-[38px] px-3 py-1.5 bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 font-bold text-xs rounded-lg border border-indigo-700 transition flex items-center gap-1.5 shadow"
+          >
+            <span>🛠️</span> Editor de Mapas
+          </button>
+
+          <button
             onClick={handleManualSave}
             className="min-h-[38px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-lg border border-slate-700 transition"
           >
@@ -145,6 +154,9 @@ export const App: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {/* Map Editor Modal Overlay */}
+      <MapEditorModal isOpen={isEditorOpen} onClose={() => setIsEditorOpen(false)} />
 
       {/* Main Screen Layout (Dominant HexBoard on Left/Center, Control Sidebar on Right) */}
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 overflow-hidden">

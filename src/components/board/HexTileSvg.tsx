@@ -43,25 +43,38 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         strokeWidth={isSelected ? 3.5 : 1.5}
       />
 
-      {/* Road Center Paths & Dashed Centerline */}
-      {tile.terrain === 'road' && (
-        <g opacity={0.6}>
+      {/* Road Center Paths & Dashed Centerline (renders on road terrain and buildings with roads) */}
+      {(tile.terrain === 'road' || (tile.roadEdges && tile.roadEdges.length > 0)) && (
+        <g opacity={0.9}>
           {tile.roadEdges && tile.roadEdges.length > 0 ? (
             tile.roadEdges.map((dir) => {
               const { p1, p2 } = getHexEdgeEndpoints(corners, dir);
               const edgeMidX = (p1.x + p2.x) / 2;
               const edgeMidY = (p1.y + p2.y) / 2;
               return (
-                <line
-                  key={dir}
-                  x1={center.x}
-                  y1={center.y}
-                  x2={edgeMidX}
-                  y2={edgeMidY}
-                  stroke="#fbbf24"
-                  strokeWidth={2}
-                  strokeDasharray="4,3"
-                />
+                <g key={dir}>
+                  {/* Dark Asphalt Road Bed */}
+                  <line
+                    x1={center.x}
+                    y1={center.y}
+                    x2={edgeMidX}
+                    y2={edgeMidY}
+                    stroke="#27272a"
+                    strokeWidth={10}
+                    strokeLinecap="round"
+                  />
+                  {/* Yellow Dashed Centerline */}
+                  <line
+                    x1={center.x}
+                    y1={center.y}
+                    x2={edgeMidX}
+                    y2={edgeMidY}
+                    stroke="#fbbf24"
+                    strokeWidth={2.5}
+                    strokeDasharray="4,3"
+                    strokeLinecap="round"
+                  />
+                </g>
               );
             })
           ) : (
@@ -94,21 +107,49 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         </g>
       )}
 
-      {/* Edge Treelines */}
+      {/* Edge Treelines: Rich 3D green sphere clusters of varying shades */}
       {tile.edges.map((edge, idx) => {
         if (edge !== 'treeline') return null;
         const { p1, p2 } = getHexEdgeEndpoints(corners, idx as any);
+
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const len = Math.hypot(dx, dy);
+        const nx = -dy / (len || 1);
+        const ny = dx / (len || 1);
+
+        const numBushes = 7;
+        const bushNodes = [];
+
+        for (let i = 0; i <= numBushes; i++) {
+          const t = i / numBushes;
+          const cx = p1.x + t * dx;
+          const cy = p1.y + t * dy;
+
+          const offsetDist = Math.sin(t * Math.PI) * 2;
+          const bx = cx + nx * offsetDist;
+          const by = cy + ny * offsetDist;
+
+          const r1 = 4.5 + (i % 3) * 1.2;
+          const r2 = 3.5 + ((i + 1) % 3) * 1.1;
+
+          const colors = ['#047857', '#059669', '#10b981', '#34d399', '#065f46'];
+          const c1 = colors[i % colors.length];
+          const c2 = colors[(i + 2) % colors.length];
+
+          bushNodes.push(
+            <g key={i}>
+              <circle cx={bx - 1.5} cy={by - 1.5} r={r1} fill={c1} stroke="#022c22" strokeWidth={0.5} opacity={0.95} />
+              <circle cx={bx + 1.5} cy={by + 1} r={r2} fill={c2} stroke="#022c22" strokeWidth={0.5} opacity={0.9} />
+            </g>
+          );
+        }
+
         return (
-          <line
-            key={idx}
-            x1={p1.x}
-            y1={p1.y}
-            x2={p2.x}
-            y2={p2.y}
-            stroke="#10b981"
-            strokeWidth={6}
-            strokeLinecap="round"
-          />
+          <g key={idx}>
+            <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#022c22" strokeWidth={8} strokeLinecap="round" opacity={0.8} />
+            {bushNodes}
+          </g>
         );
       })}
 
