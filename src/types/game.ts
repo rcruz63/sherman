@@ -68,6 +68,7 @@ export interface ShermanState {
   isLoaded: boolean;
   isTurretDamaged: boolean;
   isImmobilized: boolean;
+  isDestroyed?: boolean;
   fireLevel: number;
   hasSmoke: boolean;
   isHullDown: boolean;

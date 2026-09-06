@@ -199,12 +199,12 @@ export function resolveDamageEffect(
       return { outcome: 'CREW_CASUALTY', description: 'Comprueba KIA' };
     }
     if (roll <= 4) {
-      return { outcome: 'DAMAGED_FIRE', description: 'Dañado > ¡Fuego! (+1 Nivel de fuego)' };
+      return { outcome: 'DAMAGED_FIRE', description: 'Fuego! (+1 Nivel de fuego)' };
     }
     if (roll === 5) {
-      return { outcome: 'IMMOBILIZED', description: 'Inmovilizado' };
+      return { outcome: 'TURRET_DAMAGED', description: 'Torreta dañada' };
     }
-    return { outcome: 'CREW_CASUALTY', description: 'Comprueba KIA' };
+    return { outcome: 'IMMOBILIZED', description: 'Inmovilizado' };
   }
 }
 

@@ -105,5 +105,87 @@ describe('Stage 3 - Game Loop & German AI Tests', () => {
       expect(gameEnd.isVictory).toBe(false);
       expect(gameEnd.message).toContain('DERROTA');
     });
+
+    it('detects DEFEAT when Sherman is destroyed', () => {
+      const boardState = loadMissionState(mission1);
+      boardState.sherman.isDestroyed = true;
+
+      const gameEnd = checkGameEndConditions(boardState);
+      expect(gameEnd.isGameOver).toBe(true);
+      expect(gameEnd.isVictory).toBe(false);
+      expect(gameEnd.message).toContain('DERROTA');
+    });
+  });
+
+  describe('Phase 4: German Smoke Cleanup', () => {
+    it('removes smoke from all enemy tanks and advances to FIRE_CHECK', () => {
+      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [1, 2] });
+      boardState.enemyTanks[0].hasSmoke = true;
+      boardState.enemyTanks[1].hasSmoke = false;
+
+      const log = executePhase4(boardState);
+      expect(boardState.enemyTanks[0].hasSmoke).toBe(false);
+      expect(boardState.enemyTanks[1].hasSmoke).toBe(false);
+      expect(boardState.currentPhase).toBe(TurnPhase.FIRE_CHECK);
+      expect(log).toContain('Humo disipado');
+    });
+  });
+
+  describe('Phase 5: Fire Check Rules (Page 11)', () => {
+    it('skips phase when fireLevel is 0 and advances to GERMAN_OPERATIONS', () => {
+      const boardState = loadMissionState(mission1);
+      boardState.sherman.fireLevel = 0;
+
+      const log = executePhase5(boardState, [1]);
+      expect(boardState.sherman.isDestroyed).toBeFalsy();
+      expect(boardState.currentPhase).toBe(TurnPhase.GERMAN_OPERATIONS);
+      expect(log).toContain('Sin fuego activo');
+    });
+
+    it('rolls N d6 equal to fireLevel and takes the lowest result (e.g. [4, 1] picks 1 -> Destroyed)', () => {
+      const boardState = loadMissionState(mission1);
+      boardState.sherman.fireLevel = 2;
+
+      executePhase5(boardState, [4, 1]);
+      expect(boardState.sherman.isDestroyed).toBe(true);
+      expect(boardState.currentPhase).toBe(TurnPhase.GERMAN_OPERATIONS);
+    });
+
+    it('roll 2 triggers Crew Casualty check', () => {
+      const boardState = loadMissionState(mission1);
+      boardState.sherman.fireLevel = 1;
+
+      // Lowest 2, casualty roll 3 (gunner)
+      executePhase5(boardState, [2], 3);
+      expect(boardState.sherman.crew.gunner.status).toBe('kia');
+    });
+
+    it('roll 3-4 increases Fire Level by +1', () => {
+      const boardState = loadMissionState(mission1);
+      boardState.sherman.fireLevel = 1;
+
+      executePhase5(boardState, [3]);
+      expect(boardState.sherman.fireLevel).toBe(2);
+    });
+
+    it('roll 5 damages Sherman Turret', () => {
+      const boardState = loadMissionState(mission1);
+      boardState.sherman.fireLevel = 1;
+      boardState.sherman.isTurretDamaged = false;
+
+      executePhase5(boardState, [5]);
+      expect(boardState.sherman.isTurretDamaged).toBe(true);
+    });
+
+    it('roll 6 immobilizes Sherman and removes Hull Down if present', () => {
+      const boardState = loadMissionState(mission1);
+      boardState.sherman.fireLevel = 1;
+      boardState.sherman.isHullDown = true;
+      boardState.sherman.isImmobilized = false;
+
+      executePhase5(boardState, [6]);
+      expect(boardState.sherman.isImmobilized).toBe(true);
+      expect(boardState.sherman.isHullDown).toBe(false);
+    });
   });
 });

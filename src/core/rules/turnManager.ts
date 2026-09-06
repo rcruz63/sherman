@@ -3,9 +3,19 @@
  */
 
 import { BoardState, TurnPhase } from '../../types/game';
-import { resolveDamageEffect } from './combat';
+import { resolveDamageEffect, resolveCrewCasualtyRoll } from './combat';
 import { resolveMissionEvent } from './missionLoader';
-import { handleMoveTruckEvent } from './eventHandlers';
+import {
+  handleMoveTruckEvent,
+  handleSpawnInfantryEvent,
+  handleInfantryAttackEvent,
+  handleSniperEvent,
+  handleMinesEvent,
+  handleStukaEvent,
+  handleCommanderOrderEvent,
+  handleMechanicalFailureEvent,
+  handleSpawnTankEvent,
+} from './eventHandlers';
 
 export interface GameEndStatus {
   isGameOver: boolean;
@@ -19,6 +29,15 @@ export interface GameEndStatus {
 export function checkGameEndConditions(boardState: BoardState): GameEndStatus {
   const missionData = boardState.missionData;
   const sherman = boardState.sherman;
+
+  // Defeat Condition 0: Sherman Destroyed
+  if (sherman.isDestroyed) {
+    return {
+      isGameOver: true,
+      isVictory: false,
+      message: 'DERROTA: El tanque Sherman ha sido Destruido.',
+    };
+  }
 
   // Defeat Condition 1: All crew members KIA
   const crewArray = Object.values(sherman.crew);
@@ -143,28 +162,46 @@ export function executePhase1(boardState: BoardState): string {
 
 /**
  * Phase 4: German Smoke Cleanup
+ * Removes smoke markers from all German tanks (smoke lasts only 1 turn).
  */
 export function executePhase4(boardState: BoardState): string {
+  const tanksWithSmoke = boardState.enemyTanks.filter((t) => t.hasSmoke);
   boardState.enemyTanks.forEach((tank) => {
     tank.hasSmoke = false;
   });
   boardState.currentPhase = TurnPhase.FIRE_CHECK;
-  return 'Fase 4: Limpieza de humo de tanques enemigos completada.';
+  if (tanksWithSmoke.length > 0) {
+    const ids = tanksWithSmoke.map((t) => `${t.type.toUpperCase()} #${t.id}`).join(', ');
+    return `Fase 4: Humo disipado en los tanques alemanes: ${ids}.`;
+  }
+  return 'Fase 4: Limpieza de Humo Alemán (ningún tanque enemigo tenía humo activo).';
 }
 
 /**
  * Phase 5: Fire Check
+ * If fireLevel > 0, rolls 1d6 per fire level and takes the lowest result.
+ * Resolves damage on Sherman table without armor penetration step:
+ * 1: Sherman Destroyed
+ * 2: Crew Casualty Check (1d6)
+ * 3-4: Fire Level +1
+ * 5: Turret Damaged
+ * 6: Immobilized (and loses Hull Down if present)
  */
-export function executePhase5(boardState: BoardState, presetRolls?: number[]): string {
-  const fireLevel = boardState.sherman.fireLevel;
+export function executePhase5(
+  boardState: BoardState,
+  presetRolls?: number[],
+  presetCasualtyRoll?: number
+): string {
+  const sherman = boardState.sherman;
+  const fireLevel = sherman.fireLevel;
 
   if (fireLevel <= 0) {
     boardState.currentPhase = TurnPhase.GERMAN_OPERATIONS;
-    return 'Fase 5: Sin fuego activo en el Sherman.';
+    return 'Fase 5: Sin fuego activo en el Sherman (Nivel 0) ➔ Fase 5 omitida, avanzando a Fase 6.';
   }
 
   // Roll N d6 = fireLevel and take the minimum result
-  const rolls: number[] = presetRolls || [];
+  const rolls: number[] = presetRolls && presetRolls.length > 0 ? [...presetRolls] : [];
   if (rolls.length === 0) {
     for (let i = 0; i < fireLevel; i++) {
       rolls.push(Math.floor(Math.random() * 6) + 1);
@@ -174,28 +211,154 @@ export function executePhase5(boardState: BoardState, presetRolls?: number[]): s
   const minRoll = Math.min(...rolls);
   const effect = resolveDamageEffect('sherman', minRoll);
 
+  let effectDetail = effect.description;
+
+  if (effect.outcome === 'DESTROYED') {
+    sherman.isDestroyed = true;
+    effectDetail = '¡Sherman Destruido por el fuego!';
+  } else if (effect.outcome === 'CREW_CASUALTY') {
+    const dKia = presetCasualtyRoll ?? (Math.floor(Math.random() * 6) + 1);
+    const isHatched = sherman.commanderPosition === 'hatched';
+    const casualty = resolveCrewCasualtyRoll(dKia, isHatched);
+    if (casualty) {
+      sherman.crew[casualty.role].status = 'kia';
+      effectDetail = `Comprueba KIA (Tirada 1d6 [${dKia}]) ➔ ${casualty.description}`;
+    } else {
+      effectDetail = `Comprueba KIA (Tirada 1d6 [${dKia}]) ➔ Comandante en Interior ➔ ¡Sin bajas!`;
+    }
+  } else if (effect.outcome === 'DAMAGED_FIRE') {
+    sherman.fireLevel += 1;
+    effectDetail = `¡El fuego se extiende! +1 Nivel de fuego (Nuevo nivel: 🔥 ${sherman.fireLevel})`;
+  } else if (effect.outcome === 'TURRET_DAMAGED') {
+    sherman.isTurretDamaged = true;
+    effectDetail = 'Torreta dañada por el fuego.';
+  } else if (effect.outcome === 'IMMOBILIZED') {
+    sherman.isImmobilized = true;
+    if (sherman.isHullDown) {
+      sherman.isHullDown = false;
+      effectDetail = 'Inmovilizado por el fuego (pierde Desenfilada).';
+    } else {
+      effectDetail = 'Inmovilizado por el fuego.';
+    }
+  }
+
   boardState.currentPhase = TurnPhase.GERMAN_OPERATIONS;
-  return `Fase 5 Fuego: ${fireLevel} dado(s) [${rolls.join(', ')}] ➔ Menor: ${minRoll} (${effect.description})`;
+  return `Fase 5 Fuego: Nivel actual 🔥 ${fireLevel} (${fireLevel} dados: [${rolls.join(', ')}]) ➔ Menor: ${minRoll} ➔ ${effectDetail}`;
+}
+
+export interface Phase7PresetRolls {
+  spawnRoll?: number;
+  commanderOrderAction?: 'LOAD' | 'REPAIR' | 'EXTINGUISH';
+  stukaRolls?: {
+    aaRoll?: [number, number];
+    bombRoll?: [number, number];
+    dmgRoll?: number;
+    effectRoll?: number;
+    kiaRoll?: number;
+  };
+  infantryAttackRolls?: {
+    hitRolls?: [number, number][];
+    dmgRolls?: number[];
+    effectRolls?: number[];
+    kiaRolls?: number[];
+  };
 }
 
 /**
  * Phase 7: End of Turn Events & Turn Increment
+ * Resolves 2d6 event roll from mission-specific event table.
  */
-export function executePhase7(boardState: BoardState, roll2d6: number): string {
+export function executePhase7(
+  boardState: BoardState,
+  roll2d6: number,
+  presetEventOptions?: Phase7PresetRolls
+): string {
   const events = boardState.missionData?.endOfTurnEvents || [];
   const eventRule = resolveMissionEvent(events, roll2d6);
 
-  let extraLog = '';
+  let eventResolutionDetail = '';
 
-  // Trigger special event handler for MOVE_TRUCK in Mission 5
-  if (eventRule && eventRule.type === 'MOVE_TRUCK') {
-    const truckRes = handleMoveTruckEvent(boardState);
-    extraLog = ` | ${truckRes.detail}`;
+  if (eventRule) {
+    switch (eventRule.type) {
+      case 'SNIPER': {
+        const res = handleSniperEvent(boardState);
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'COMMANDER_ORDER': {
+        const res = handleCommanderOrderEvent(
+          boardState,
+          presetEventOptions?.commanderOrderAction
+        );
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'SPAWN_INFANTRY': {
+        const res = handleSpawnInfantryEvent(boardState, presetEventOptions?.spawnRoll);
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'INFANTRY_ATTACK': {
+        const res = handleInfantryAttackEvent(
+          boardState,
+          presetEventOptions?.infantryAttackRolls
+        );
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'MECHANICAL_FAILURE': {
+        const res = handleMechanicalFailureEvent(boardState);
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'STUKA': {
+        const res = handleStukaEvent(boardState, presetEventOptions?.stukaRolls);
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'SPAWN_PANZER_III': {
+        const res = handleSpawnTankEvent(
+          boardState,
+          'panzerIII',
+          presetEventOptions?.spawnRoll
+        );
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'SPAWN_PANZER_IV': {
+        const res = handleSpawnTankEvent(
+          boardState,
+          'panzerIV',
+          presetEventOptions?.spawnRoll
+        );
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'MINES': {
+        const res = handleMinesEvent(boardState, presetEventOptions?.spawnRoll);
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'MOVE_TRUCK': {
+        const res = handleMoveTruckEvent(boardState);
+        eventResolutionDetail = res.detail;
+        break;
+      }
+      case 'NO_EVENT':
+      case 'NONE':
+      default: {
+        eventResolutionDetail = `Sin evento en este turno (${eventRule.description}).`;
+        break;
+      }
+    }
+  } else {
+    eventResolutionDetail = 'No ocurrió ningún evento para este resultado de dados.';
   }
 
   boardState.currentTurn += 1;
   boardState.currentPhase = TurnPhase.SHERMAN_SMOKE_CLEANUP;
 
-  const eventDesc = eventRule ? `${eventRule.type}: ${eventRule.description}` : 'Sin evento.';
-  return `Fase 7 Eventos (2d6=${roll2d6}): ${eventDesc}${extraLog} ➔ Avanzando a Turno ${boardState.currentTurn}.`;
+  return `Fase 7 Eventos (Tirada 2d6 = ${roll2d6} ➔ ${
+    eventRule ? eventRule.type : 'SIN EVENTO'
+  }): ${eventResolutionDetail} ➔ Avanzando a Turno ${boardState.currentTurn}.`;
 }

@@ -157,8 +157,8 @@ describe('Combat Rules Engine', () => {
       expect(resolveDamageEffect('sherman', 2).outcome).toBe('CREW_CASUALTY');
       expect(resolveDamageEffect('sherman', 3).outcome).toBe('DAMAGED_FIRE');
       expect(resolveDamageEffect('sherman', 4).outcome).toBe('DAMAGED_FIRE');
-      expect(resolveDamageEffect('sherman', 5).outcome).toBe('IMMOBILIZED');
-      expect(resolveDamageEffect('sherman', 6).outcome).toBe('CREW_CASUALTY');
+      expect(resolveDamageEffect('sherman', 5).outcome).toBe('TURRET_DAMAGED');
+      expect(resolveDamageEffect('sherman', 6).outcome).toBe('IMMOBILIZED');
     });
   });
 

@@ -625,73 +625,217 @@ export const PhaseConsole: React.FC = () => {
 
       {/* Phase 4: German Smoke Cleanup */}
       {currentPhase === TurnPhase.GERMAN_SMOKE_CLEANUP && (
-        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-bold text-amber-400">Fase 4: Limpieza de Humo Alemán</div>
-            <div className="text-xs text-slate-400 mt-1">Resetea el humo de los tanques enemigos.</div>
+            <div className="text-sm font-bold text-amber-400">Fase 4: Eliminar el Humo Alemán</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Elimina los marcadores de humo de todos los tanques alemanes (las defensas de humo solo duran 1 turno).
+            </div>
           </div>
           <button
             onClick={runPhase4}
-            className="min-h-[48px] px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition"
+            className="min-h-[48px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 shrink-0"
           >
-            Ejecutar Fase 4
+            <span>💨</span>
+            <span>Ejecutar Fase 4</span>
           </button>
         </div>
       )}
 
       {/* Phase 5: Fire Check */}
       {currentPhase === TurnPhase.FIRE_CHECK && (
-        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-bold text-amber-400">Fase 5: Comprobación de Fuego</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Fuego Sherman actual: 🔥 {sherman.fireLevel}
+        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                <span>Fase 5: Comprobación del Nivel de Fuego</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-bold ${sherman.fireLevel > 0 ? 'bg-red-950 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400'}`}>
+                  🔥 Fuego: {sherman.fireLevel}
+                </span>
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                {sherman.fireLevel > 0
+                  ? `Se lanza 1d6 por nivel de fuego (${sherman.fireLevel}d6) y se toma la tirada MÁS BAJA en la tabla ¿Qué Daños?.`
+                  : 'Nivel de fuego = 0. Esta fase se omite automáticamente y se avanza a la Fase 6.'}
+              </div>
             </div>
+            <button
+              onClick={runPhase5}
+              className={`min-h-[48px] px-5 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition shrink-0 flex items-center justify-center gap-2 ${
+                sherman.fireLevel > 0
+                  ? 'bg-red-600 hover:bg-red-500 shadow-red-900/30'
+                  : 'bg-slate-700 hover:bg-slate-600'
+              }`}
+            >
+              {sherman.fireLevel > 0 ? (
+                <>
+                  <span>🎲</span>
+                  <span>Tirar {sherman.fireLevel}d6 y Resolver Fuego</span>
+                </>
+              ) : (
+                <>
+                  <span>Continuar a Fase 6 (Operaciones Alemanas)</span>
+                  <span>➔</span>
+                </>
+              )}
+            </button>
           </div>
-          <button
-            onClick={runPhase5}
-            className="min-h-[48px] px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md transition"
-          >
-            Ejecutar Fase 5 Fuego
-          </button>
+
+          {sherman.fireLevel > 0 && (
+            <div className="bg-slate-900/70 p-3 rounded-xl border border-slate-800 text-[11px] space-y-1.5">
+              <div className="font-semibold text-slate-300">
+                Tabla Sherman "¿Qué Daños?" (resultado menor de los {sherman.fireLevel}d6):
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-center text-slate-300">
+                <div className="bg-slate-800/80 p-1.5 rounded-lg border border-slate-700">
+                  <span className="text-red-400 font-bold block">1: Destruido</span>
+                  <span className="text-[10px] text-slate-500">Fin de partida</span>
+                </div>
+                <div className="bg-slate-800/80 p-1.5 rounded-lg border border-slate-700">
+                  <span className="text-amber-400 font-bold block">2: Comprueba KIA</span>
+                  <span className="text-[10px] text-slate-500">Tirada 1d6 bajas</span>
+                </div>
+                <div className="bg-slate-800/80 p-1.5 rounded-lg border border-slate-700">
+                  <span className="text-orange-400 font-bold block">3-4: +1 Fuego</span>
+                  <span className="text-[10px] text-slate-500">El fuego se extiende</span>
+                </div>
+                <div className="bg-slate-800/80 p-1.5 rounded-lg border border-slate-700">
+                  <span className="text-yellow-400 font-bold block">5: Torreta Dañada</span>
+                  <span className="text-[10px] text-slate-500">Impide disparar</span>
+                </div>
+                <div className="bg-slate-800/80 p-1.5 rounded-lg border border-slate-700">
+                  <span className="text-purple-400 font-bold block">6: Inmovilizado</span>
+                  <span className="text-[10px] text-slate-500">Pierde desenfilada</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Phase 6: German AI Operations */}
-      {currentPhase === TurnPhase.GERMAN_OPERATIONS && (
-        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-bold text-red-400">Fase 6: Operaciones IA Alemana</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Ordena y ejecuta secuencialmente las acciones de los tanques enemigos activos.
+      {currentPhase === TurnPhase.GERMAN_OPERATIONS && (() => {
+        const activeTanks = [...boardState.enemyTanks]
+          .filter((t) => t.status !== 'destroyed')
+          .sort((a, b) => {
+            const distA = hexDistance(a.coord, sherman.coord);
+            const distB = hexDistance(b.coord, sherman.coord);
+            return distA - distB;
+          });
+
+        return (
+          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-bold text-red-400 flex items-center gap-2">
+                  <span>Fase 6: Operaciones de Tanques Alemanes</span>
+                  <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-950 text-red-400 border border-red-800">
+                    {activeTanks.length} activo(s)
+                  </span>
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Activación en orden de proximidad al Sherman. Cada tanque tira dados según su terreno/daño y resuelve sus acciones en orden ascendente (Acción 1 &gt; Acción 2).
+                </div>
+              </div>
+              <button
+                onClick={runPhase6GermanAI}
+                className="min-h-[48px] px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/40 transition flex items-center justify-center gap-2 shrink-0"
+              >
+                <span>🤖</span>
+                <span>Resolver Operaciones Alemanas</span>
+              </button>
             </div>
+
+            {activeTanks.length > 0 ? (
+              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
+                <div className="text-[11px] font-semibold text-slate-400">
+                  Orden de Activación (más cercano primero):
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {activeTanks.map((tank, idx) => {
+                    const dist = hexDistance(tank.coord, sherman.coord);
+                    const tile = boardState.tiles.get(`${tank.coord.q},${tank.coord.r}`);
+                    const terrainName = tile?.terrain === 'road' ? 'Carretera (4d)' : tile?.terrain === 'mud' ? 'Barro (3d)' : 'Campo (4d)';
+                    const statusText = tank.status === 'damaged' ? 'Dañado (2d)' : terrainName;
+
+                    return (
+                      <div
+                        key={tank.id}
+                        className="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-2"
+                      >
+                        <span className="font-bold text-amber-400">#{idx + 1}</span>
+                        <span className="text-slate-200 font-semibold">{tank.type.toUpperCase()}</span>
+                        <span className="text-slate-400">Dist: <strong className="text-slate-200">{dist}</strong></span>
+                        <span className="text-slate-500">|</span>
+                        <span className="text-amber-300/90 text-[11px]">{statusText}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500 italic">
+                No hay tanques alemanes activos en el mapa.
+              </div>
+            )}
           </div>
-          <button
-            onClick={runPhase6GermanAI}
-            className="min-h-[48px] px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2"
-          >
-            🤖 Resolver IA Alemana
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Phase 7: End of Turn Events */}
-      {currentPhase === TurnPhase.END_TURN_EVENTS && (
-        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-bold text-amber-400">Fase 7: Eventos Fin de Turno</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Resuelve la tirada 2d6 en la tabla de la misión y avanza al siguiente turno.
+      {currentPhase === TurnPhase.END_TURN_EVENTS && (() => {
+        const events = boardState.missionData?.endOfTurnEvents || [];
+
+        return (
+          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                  <span>Fase 7: Eventos de Fin de Turno</span>
+                  <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-950 text-amber-400 border border-amber-800">
+                    Turno {boardState.currentTurn}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Se lanzan 2d6 para determinar qué evento de la misión ocurre antes de avanzar al siguiente turno.
+                </div>
+              </div>
+              <button
+                onClick={() => runPhase7EndTurn()}
+                className="min-h-[48px] px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-amber-950/40 transition flex items-center justify-center gap-2 shrink-0"
+              >
+                <span>🎲</span>
+                <span>Lanzar 2d6 y Resolver Evento</span>
+              </button>
             </div>
+
+            {events.length > 0 && (
+              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+                <div className="text-[11px] font-semibold text-slate-400">
+                  Tabla de Eventos de la Misión (Tirada 2d6):
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 pt-1">
+                  {events.map((e, idx) => {
+                    const range = e.rollMin === e.rollMax ? `${e.rollMin}` : `${e.rollMin}–${e.rollMax}`;
+                    return (
+                      <div
+                        key={idx}
+                        className="bg-slate-800/80 p-2 rounded-lg border border-slate-700 flex flex-col gap-0.5"
+                      >
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-bold text-amber-400">Dados {range}</span>
+                          <span className="font-semibold text-slate-300">{e.type}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 line-clamp-2">{e.description}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => runPhase7EndTurn()}
-            className="min-h-[48px] px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
-          >
-            🎲 Resolver Evento 2d6
-          </button>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
