@@ -98,41 +98,11 @@
     "misc": { "road": 1, "field": 2, "mud": 1 }
   },
   "endOfTurnEvents": [
-    {
-      "rollMin": 2,
-      "rollMax": 5,
-      "type": "SPAWN_INFANTRY",
-      "description": "Lanza 1d6: Colocar infantería en el hexágono rojo correspondiente sin unidades. No se repite la tirada."
-    },
-    {
-      "rollMin": 6,
-      "rollMax": 6,
-      "type": "MINES",
-      "description": "¡Minas! Si el Sherman está en carretera y no está Inmovilizado, impacto automático (Pen 0 vs BL 4)."
-    },
-    {
-      "rollMin": 7,
-      "rollMax": 8,
-      "type": "INFANTRY_ATTACK",
-      "description": "Toda infantería alemana adyacente ataca: Impacto 2d6 a Distancia 1; ¿Daños? con Pen 1 vs BL del Sherman."
-    },
-    {
-      "rollMin": 9,
-      "rollMax": 9,
-      "type": "COMMANDER_ORDER",
-      "description": "Si el Comandante no está KIA, realiza 1 acción entre CARGAR, REPARAR o EXTINGUIR."
-    },
-    {
-      "rollMin": 10,
-      "rollMax": 10,
-      "type": "STUKA",
-      "description": "Si Comandante = A, tirada 2d6 con 6+ derriba al Stuka. Si no, impacto con 8+ (Pen 1 vs BL 4)."
-    },
-    {
-      "rollMin": 11,
-      "rollMax": 12,
-      "type": "SPAWN_PANZER_IV",
-      "description": "Lanza 1d6: Colocar Panzer IV en hexágono negro correspondiente encarando al número. No repetir tirada."
-    }
+    { "rollMin": 2, "rollMax": 5, "type": "SPAWN_INFANTRY", "description": "Lanza 1d6: Colocar infantería en el hexágono rojo correspondiente sin unidades. No se repite la tirada." },
+    { "rollMin": 6, "rollMax": 6, "type": "MINES", "description": "¡Minas! Si el Sherman está en carretera y no está Inmovilizado, impacto automático (Pen 0 vs BL 4)." },
+    { "rollMin": 7, "rollMax": 8, "type": "INFANTRY_ATTACK", "description": "Toda infantería alemana adyacente ataca: Impacto 2d6 a Distancia 1; ¿Daños? con Pen 1 vs BL del Sherman." },
+    { "rollMin": 9, "rollMax": 9, "type": "COMMANDER_ORDER", "description": "Si el Comandante no está KIA, realiza 1 acción entre CARGAR, REPARAR o EXTINGUIR." },
+    { "rollMin": 10, "rollMax": 10, "type": "STUKA", "description": "Si Comandante = A, tirada 2d6 con 6+ derriba al Stuka. Si no, impacto con 8+ (Pen 1 vs BL 4)." },
+    { "rollMin": 11, "rollMax": 12, "type": "SPAWN_PANZER_IV", "description": "Lanza 1d6: Colocar Panzer IV en hexágono negro correspondiente encarando al número. No repetir tirada." }
   ]
 }

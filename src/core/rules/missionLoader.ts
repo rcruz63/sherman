@@ -105,13 +105,16 @@ export function parseAxialCoord(
   return { q, r };
 }
 
+import { autoFixMapConfig } from '../hex/mapValidator';
+
 /**
  * Loads a mission JSON into a fully initialized BoardState
  */
 export function loadMissionState(
-  missionData: MissionJSON,
+  rawMissionData: MissionJSON,
   options?: LoadMissionOptions
 ): BoardState {
+  const missionData = autoFixMapConfig(rawMissionData);
   const tileMap = new Map<string, BoardHex>();
   const blackNumbers: BlackSpawnPoint[] = [];
   const redNumbers: RedSpawnPoint[] = [];

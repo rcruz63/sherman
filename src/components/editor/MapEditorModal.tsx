@@ -105,7 +105,8 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
   const handleSelectMissionTemplate = (id: number) => {
     setSelectedMissionId(id);
     const target = missions.find((m) => m.id === id) || missions[0];
-    setMission(JSON.parse(JSON.stringify(target)));
+    const fixedTarget = autoFixMapConfig(target);
+    setMission(JSON.parse(JSON.stringify(fixedTarget)));
   };
 
   const validation: ValidationResult = validateMapConfig(mission);
