@@ -1,17 +1,22 @@
 {
   "id": 1,
   "title": "Misión 1 - El Pueblo",
-  "briefing": "Avanza por el camino hacia el pueblo. Destruye los dos carros blindados Panzer IV que defienden la posición y escapa por la ruta designada.",
-  "map": {
-    "orientation": "pointy-topped",
-    "columns": 5,
-    "rows": 9,
-    "defaultTerrain": "FIELD"
+  "briefing": "Avanza por la carretera hacia el pueblo. Destruye los dos carros blindados Panzer IV que defienden la posición y escapa por la ruta norte designada por la flecha roja.",
+  "grid": {
+    "orientation": "flat-topped",
+    "columns": [
+      { "col": 0, "rows": 5 },
+      { "col": 1, "rows": 6 },
+      { "col": 2, "rows": 7 },
+      { "col": 3, "rows": 7 },
+      { "col": 4, "rows": 6 },
+      { "col": 5, "rows": 5 }
+    ]
   },
   "victoryConditions": {
     "destroyAllEnemiesOfType": ["PANZER_IV"],
     "requireMapExit": true,
-    "exitHex": { "q": 1, "r": 0 }
+    "exitHex": { "col": 2, "row": 0 }
   },
   "defeatConditions": {
     "shermanDestroyed": true,
@@ -19,8 +24,8 @@
   },
   "playerDeployment": {
     "unit": "SHERMAN",
-    "hex": { "q": 1, "r": 8 },
-    "facing": 0,
+    "hex": { "col": 5, "row": 4 },
+    "facing": 5,
     "initialStatus": {
       "loaded": false,
       "fireLevel": 0,
@@ -47,72 +52,61 @@
     ],
     "infantry": []
   },
-  "spawnPoints": {
-    "blackNumbers": [
-      { "number": 1, "hex": { "q": 1, "r": 1 }, "facing": 3 },
-      { "number": 2, "hex": { "q": 0, "r": 3 }, "facing": 2 },
-      { "number": 3, "hex": { "q": 2, "r": 3 }, "facing": 4 },
-      { "number": 4, "hex": { "q": 0, "r": 5 }, "facing": 1 },
-      { "number": 5, "hex": { "q": 2, "r": 5 }, "facing": 5 },
-      { "number": 6, "hex": { "q": 1, "r": 4 }, "facing": 3 }
-    ],
-    "redNumbers": [
-      { "number": 1, "hex": { "q": 0, "r": 2 } },
-      { "number": 2, "hex": { "q": 2, "r": 2 } },
-      { "number": 3, "hex": { "q": 1, "r": 3 } },
-      { "number": 4, "hex": { "q": 0, "r": 4 } },
-      { "number": 5, "hex": { "q": 2, "r": 4 } },
-      { "number": 6, "hex": { "q": 1, "r": 2 } }
-    ]
-  },
+  "hexes": [
+    { "col": 0, "row": 0, "terrain": "FIELD", "blackSpot": { "number": 6, "facing": 1 } },
+    { "col": 0, "row": 1, "terrain": "MUD" },
+    { "col": 0, "row": 2, "terrain": "FIELD", "blackSpot": { "number": 5, "facing": 2 }, "treeLines": ["NE", "SE"] },
+    { "col": 0, "row": 3, "terrain": "WOODS", "redSpot": 2 },
+    { "col": 0, "row": 4, "terrain": "FIELD", "blackSpot": { "number": 4, "facing": 1 } },
+
+    { "col": 1, "row": 0, "terrain": "WOODS", "redSpot": 1 },
+    { "col": 1, "row": 1, "terrain": "FIELD" },
+    { "col": 1, "row": 2, "terrain": "FIELD", "treeLines": ["SW"] },
+    { "col": 1, "row": 3, "terrain": "FIELD", "treeLines": ["NW"] },
+    { "col": 1, "row": 4, "terrain": "FIELD", "treeLines": ["NE", "SE"] },
+    { "col": 1, "row": 5, "terrain": "FIELD" },
+
+    { "col": 2, "row": 0, "terrain": "ROAD", "blackSpot": { "number": 1, "facing": 3 }, "isExit": true, "roadEdges": ["S", "N"] },
+    { "col": 2, "row": 1, "terrain": "ROAD", "roadEdges": ["S", "N"] },
+    { "col": 2, "row": 2, "terrain": "ROAD", "roadEdges": ["S", "N"] },
+    { "col": 2, "row": 3, "terrain": "ROAD", "hasBuilding": true, "buildingType": "TOWN", "roadEdges": ["N", "SE"] },
+    { "col": 2, "row": 4, "terrain": "FIELD", "treeLines": ["SW", "S"] },
+    { "col": 2, "row": 5, "terrain": "FIELD", "treeLines": ["NW", "N"] },
+    { "col": 2, "row": 6, "terrain": "MUD", "redSpot": 3 },
+
+    { "col": 3, "row": 0, "terrain": "FIELD", "treeLines": ["SE"] },
+    { "col": 3, "row": 1, "terrain": "FIELD", "treeLines": ["NW"] },
+    { "col": 3, "row": 2, "terrain": "FIELD", "treeLines": ["SE"] },
+    { "col": 3, "row": 3, "terrain": "ROAD", "roadEdges": ["SE", "NW"], "treeLines": ["NW"] },
+    { "col": 3, "row": 4, "terrain": "MUD" },
+    { "col": 3, "row": 5, "terrain": "FIELD" },
+    { "col": 3, "row": 6, "terrain": "FIELD" },
+
+    { "col": 4, "row": 0, "terrain": "FIELD", "blackSpot": { "number": 2, "facing": 4 }, "treeLines": ["NW", "SW", "SE"] },
+    { "col": 4, "row": 1, "terrain": "WOODS", "redSpot": 4 },
+    { "col": 4, "row": 2, "terrain": "MUD", "treeLines": ["NW", "SW", "S", "SE", "NE"] },
+    { "col": 4, "row": 3, "terrain": "ROAD", "hasBuilding": true, "buildingType": "TOWN", "redSpot": 5, "roadEdges": ["S", "NW"], "treeLines": ["N"] },
+    { "col": 4, "row": 4, "terrain": "ROAD", "roadEdges": ["SE", "N"] },
+    { "col": 4, "row": 5, "terrain": "FIELD" },
+
+    { "col": 5, "row": 0, "terrain": "FIELD", "treeLines": ["NW"] },
+    { "col": 5, "row": 1, "terrain": "FIELD", "treeLines": ["SW", "S"] },
+    { "col": 5, "row": 2, "terrain": "FIELD", "treeLines": ["N", "NW", "S"] },
+    { "col": 5, "row": 3, "terrain": "FIELD", "treeLines": ["N"] },
+    { "col": 5, "row": 4, "terrain": "ROAD", "isEntry": true, "roadEdges": ["NW"] }
+  ],
   "shermanDicePool": {
     "maneuver": { "road": 2, "field": 1, "mud": 0 },
     "attack": { "road": 2, "field": 2, "mud": 1 },
     "misc": { "road": 1, "field": 2, "mud": 1 }
   },
   "endOfTurnEvents": [
-    {
-      "rollMin": 2,
-      "rollMax": 3,
-      "type": "SNIPER",
-      "description": "Si Cte = A y en línea de visión de cualquier infantería (cualquier distancia), queda KIA."
-    },
-    {
-      "rollMin": 4,
-      "rollMax": 4,
-      "type": "COMMANDER_ORDER",
-      "description": "Si Cte no está KIA, realiza 1 acción entre CARGAR, REPARAR o EXTINGUIR."
-    },
-    {
-      "rollMin": 5,
-      "rollMax": 6,
-      "type": "SPAWN_INFANTRY",
-      "description": "Lanza 1d6: Colocar infantería en el hexágono rojo correspondiente sin unidades. No se repite tirada."
-    },
-    {
-      "rollMin": 7,
-      "rollMax": 8,
-      "type": "INFANTRY_ATTACK",
-      "description": "Toda infantería alemana adyacente ataca: Impacto 2d6 a Distancia 1; ¿Daños? con Pen 1."
-    },
-    {
-      "rollMin": 9,
-      "rollMax": 9,
-      "type": "MECHANICAL_FAILURE",
-      "description": "El Sherman queda Inmovilizado si no lo estaba ya."
-    },
-    {
-      "rollMin": 10,
-      "rollMax": 10,
-      "type": "STUKA",
-      "description": "Si Cte = A, tirada 2d6 6+ derriba Stuka. Si no, impacto con 8+ (Pen 1 vs BL 4)."
-    },
-    {
-      "rollMin": 11,
-      "rollMax": 12,
-      "type": "SPAWN_PANZER_III",
-      "description": "Lanza 1d6: Colocar Panzer III en hexágono negro correspondiente encarando al número. No repetir tirada."
-    }
+    { "rollMin": 2, "rollMax": 3, "type": "SNIPER", "description": "Si Cte = A y en LOS de infantería, queda KIA." },
+    { "rollMin": 4, "rollMax": 4, "type": "COMMANDER_ORDER", "description": "Si Cte no está KIA: Cargar, Reparar o Extinguir." },
+    { "rollMin": 5, "rollMax": 6, "type": "SPAWN_INFANTRY", "description": "Lanza d6: Colocar en hex rojo correspondiente." },
+    { "rollMin": 7, "rollMax": 8, "type": "INFANTRY_ATTACK", "description": "Infantería adyacente ataca a dist 1, Pen 1." },
+    { "rollMin": 9, "rollMax": 9, "type": "MECHANICAL_FAILURE", "description": "El Sherman queda Inmovilizado." },
+    { "rollMin": 10, "rollMax": 10, "type": "STUKA", "description": "Ataque aéreo Stuka." },
+    { "rollMin": 11, "rollMax": 12, "type": "SPAWN_PANZER_III", "description": "Lanza d6: Colocar Panzer III en hex negro." }
   ]
 }
-

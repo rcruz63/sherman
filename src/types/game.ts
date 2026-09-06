@@ -27,9 +27,14 @@ export interface BoardHex {
   terrain: TerrainType;
   /** Edges indexed 0 to 5 matching the 6 axial directions */
   edges: [EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature];
+  hasBuilding?: boolean;
+  buildingType?: string;
+  roadEdges?: Facing[];
+  treeLines?: Facing[];
   blackSpawnNumber?: number;
   blackSpawnFacing?: Facing;
   redSpawnNumber?: number;
+  isEntryHex?: boolean;
   isExitHex?: boolean;
   isBridge?: boolean;
 }
@@ -190,7 +195,7 @@ export interface InitialCrewConfig {
 
 export interface PlayerDeploymentConfig {
   unit: string;
-  hex: AxialCoord;
+  hex: AxialCoord | { col: number; row: number };
   facing: Facing;
   initialStatus: InitialShermanStatus;
   crew: InitialCrewConfig[];
@@ -205,7 +210,7 @@ export interface TankSpawnConfig {
 
 export interface SpecialUnitSpawnConfig {
   type: 'TRUCK' | string;
-  hex: AxialCoord;
+  hex: AxialCoord | { col: number; row: number };
   facing: Facing;
   status: string;
 }
@@ -214,7 +219,7 @@ export interface InfantrySpawnConfig {
   id?: string;
   spawnMethod: 'ALL_BUILDING_HEXES' | 'FIXED_RED_NUMBER' | 'FIXED_HEX' | 'RANDOM_UNIQUE_RED_NUMBERS' | string;
   number?: number;
-  hex?: AxialCoord;
+  hex?: AxialCoord | { col: number; row: number };
   count?: number;
   isObjective?: boolean;
 }
@@ -223,6 +228,30 @@ export interface EnemyDeploymentConfig {
   tanks?: TankSpawnConfig[];
   specialUnits?: SpecialUnitSpawnConfig[];
   infantry?: InfantrySpawnConfig[];
+}
+
+export interface RawHexConfig {
+  col: number;
+  row: number;
+  terrain: string;
+  hasBuilding?: boolean;
+  buildingType?: string;
+  roadEdges?: string[];
+  treeLines?: string[];
+  blackSpot?: { number: number; facing: Facing };
+  redSpot?: number;
+  isEntry?: boolean;
+  isExit?: boolean;
+}
+
+export interface GridColumnConfig {
+  col: number;
+  rows: number;
+}
+
+export interface MissionGridConfig {
+  orientation: 'pointy-topped' | 'flat-topped';
+  columns: GridColumnConfig[];
 }
 
 export interface MissionMapConfig {
@@ -240,7 +269,7 @@ export interface VictoryConditions {
   clearAllEnemies?: boolean;
   crewRescued?: boolean;
   requireMapExit: boolean;
-  exitHex?: AxialCoord;
+  exitHex?: AxialCoord | { col: number; row: number };
 }
 
 export interface DefeatConditions {
@@ -280,13 +309,15 @@ export interface MissionJSON {
   id: number;
   title: string;
   briefing: string;
-  map: MissionMapConfig;
+  grid?: MissionGridConfig;
+  map?: MissionMapConfig;
   victoryConditions: VictoryConditions;
   defeatConditions: DefeatConditions;
   specialRules?: SpecialRulesConfig;
   playerDeployment: PlayerDeploymentConfig;
   enemyDeployment: EnemyDeploymentConfig;
-  spawnPoints: MissionSpawnPoints;
+  spawnPoints?: MissionSpawnPoints;
+  hexes?: RawHexConfig[];
   shermanDicePool: ShermanDicePoolConfig;
   endOfTurnEvents: EventRule[];
 }

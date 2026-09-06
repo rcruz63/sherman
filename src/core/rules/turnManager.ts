@@ -111,8 +111,9 @@ export function checkGameEndConditions(boardState: BoardState): GameEndStatus {
     // Check map exit requirement
     let reachedExit = true;
     if (vc.requireMapExit && vc.exitHex) {
-      const exit = vc.exitHex;
-      reachedExit = sherman.coord.q === exit.q && sherman.coord.r === exit.r;
+      const exitQ = (vc.exitHex as any).q ?? (vc.exitHex as any).col;
+      const exitR = (vc.exitHex as any).r ?? (vc.exitHex as any).row;
+      reachedExit = sherman.coord.q === exitQ && sherman.coord.r === exitR;
     }
 
     if (tankVictory && clearAllEnemyTanksVictory && infantryVictory && specificUnitVictory && clearAllVictory && crewRescuedVictory && reachedExit) {

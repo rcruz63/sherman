@@ -1,6 +1,6 @@
 import React from 'react';
 import { BoardHex } from '../../types/game';
-import { cornersToPolygonPoints, getHexCenter, getHexCorners, getHexEdgeEndpoints } from './hexSvgUtils';
+import { cornersToPolygonPoints, getFacingAngleDegrees, getHexCenter, getHexCorners, getHexEdgeEndpoints } from './hexSvgUtils';
 
 interface HexTileSvgProps {
   tile: BoardHex;
@@ -10,8 +10,8 @@ interface HexTileSvgProps {
 }
 
 const TERRAIN_STYLES: Record<string, { fill: string; stroke: string; label: string }> = {
-  field: { fill: '#1b2a1e', stroke: '#2e4533', label: 'Campo' },
-  road: { fill: '#334155', stroke: '#64748b', label: 'Carretera' },
+  field: { fill: '#1b3822', stroke: '#2e5a36', label: 'Campo' },
+  road: { fill: '#27272a', stroke: '#52525b', label: 'Carretera' },
   mud: { fill: '#451a03', stroke: '#78350f', label: 'Barro' },
   woods: { fill: '#064e3b', stroke: '#059669', label: 'Bosque' },
   building: { fill: '#7f1d1d', stroke: '#dc2626', label: 'Edificio' },
@@ -43,18 +43,54 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         strokeWidth={isSelected ? 3.5 : 1.5}
       />
 
-      {/* Terrain Icon / Pattern Decoration */}
-      {tile.terrain === 'woods' && (
-        <g opacity={0.65} transform={`translate(${center.x}, ${center.y})`}>
-          <circle cx={-6} cy={-4} r={7} fill="#10b981" />
-          <circle cx={6} cy={-4} r={7} fill="#059669" />
-          <circle cx={0} cy={-10} r={8} fill="#34d399" />
+      {/* Road Center Paths & Dashed Centerline */}
+      {tile.terrain === 'road' && (
+        <g opacity={0.6}>
+          {tile.roadEdges && tile.roadEdges.length > 0 ? (
+            tile.roadEdges.map((dir) => {
+              const { p1, p2 } = getHexEdgeEndpoints(corners, dir);
+              const edgeMidX = (p1.x + p2.x) / 2;
+              const edgeMidY = (p1.y + p2.y) / 2;
+              return (
+                <line
+                  key={dir}
+                  x1={center.x}
+                  y1={center.y}
+                  x2={edgeMidX}
+                  y2={edgeMidY}
+                  stroke="#fbbf24"
+                  strokeWidth={2}
+                  strokeDasharray="4,3"
+                />
+              );
+            })
+          ) : (
+            <circle cx={center.x} cy={center.y} r={radius * 0.2} fill="none" stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="3,3" />
+          )}
         </g>
       )}
 
-      {tile.terrain === 'building' && (
-        <g opacity={0.7} transform={`translate(${center.x - 8}, ${center.y - 8})`}>
-          <path d="M 0 8 L 8 0 L 16 8 L 16 16 L 0 16 Z" fill="#ef4444" />
+      {/* Terrain Icon / Texture Decoration */}
+      {tile.terrain === 'woods' && (
+        <g opacity={0.7} transform={`translate(${center.x}, ${center.y})`}>
+          <circle cx={-8} cy={-4} r={8} fill="#10b981" />
+          <circle cx={8} cy={-4} r={8} fill="#059669" />
+          <circle cx={0} cy={-12} r={9} fill="#34d399" />
+          <path d="M 0 -3 L -2 8 L 2 8 Z" fill="#022c22" />
+        </g>
+      )}
+
+      {/* Building Silhouette (Houses / Town) */}
+      {(tile.hasBuilding || tile.terrain === 'building') && (
+        <g transform={`translate(${center.x}, ${center.y - 4})`}>
+          {/* Main House */}
+          <path d="M -12 6 L 0 -6 L 12 6 L 12 14 L -12 14 Z" fill="#b91c1c" stroke="#fca5a5" strokeWidth={1} />
+          {/* Chimney */}
+          <rect x={5} y={-4} width={3} height={6} fill="#7f1d1d" />
+          {/* Door & Windows */}
+          <rect x={-3} y={8} width={6} height={6} fill="#450a0a" />
+          <rect x={-8} y={4} width={3} height={3} fill="#fef08a" />
+          <rect x={5} y={4} width={3} height={3} fill="#fef08a" />
         </g>
       )}
 
@@ -70,53 +106,71 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
             x2={p2.x}
             y2={p2.y}
             stroke="#10b981"
-            strokeWidth={5}
+            strokeWidth={6}
             strokeLinecap="round"
           />
         );
       })}
 
-      {/* Exit Marker */}
-      {tile.isExitHex && (
-        <g transform={`translate(${center.x}, ${center.y - 18})`}>
-          <rect x={-18} y={-10} width={36} height={16} rx={4} fill="#059669" opacity={0.9} />
-          <text x={0} y={2} textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="bold">
-            SALIDA
-          </text>
-        </g>
-      )}
-
-      {/* Black Spawn Number Badge (Tanks) */}
+      {/* Black Spot Badge (Tanks) with Facing Arrow */}
       {tile.blackSpawnNumber !== undefined && (
-        <g transform={`translate(${center.x - 14}, ${center.y + 12})`}>
-          <circle cx={0} cy={0} r={10} fill="#09090b" stroke="#a1a1aa" strokeWidth={1.5} />
-          <text x={0} y={3.5} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">
+        <g transform={`translate(${center.x - (tile.hasBuilding ? 16 : 0)}, ${center.y + (tile.hasBuilding ? 14 : 0)})`}>
+          <circle cx={0} cy={0} r={11} fill="#09090b" stroke="#f4f4f5" strokeWidth={1.5} />
+          <text x={0} y={4} textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="bold">
             {tile.blackSpawnNumber}
           </text>
+          {/* Facing Arrow Indicator */}
+          {tile.blackSpawnFacing !== undefined && (
+            <g transform={`rotate(${getFacingAngleDegrees(tile.blackSpawnFacing)})`}>
+              <polygon points="0,-16 -4,-11 4,-11" fill="#facc15" stroke="#000000" strokeWidth={0.5} />
+            </g>
+          )}
         </g>
       )}
 
-      {/* Red Spawn Number Badge (Infantry) */}
+      {/* Red Spot Badge (Infantry) */}
       {tile.redSpawnNumber !== undefined && (
-        <g transform={`translate(${center.x + 14}, ${center.y + 12})`}>
-          <circle cx={0} cy={0} r={10} fill="#991b1b" stroke="#fca5a5" strokeWidth={1.5} />
-          <text x={0} y={3.5} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">
+        <g transform={`translate(${center.x + (tile.hasBuilding ? 16 : 0)}, ${center.y + (tile.hasBuilding ? 14 : 0)})`}>
+          <circle cx={0} cy={0} r={11} fill="#b91c1c" stroke="#fca5a5" strokeWidth={1.5} />
+          <text x={0} y={4} textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="bold">
             {tile.redSpawnNumber}
           </text>
         </g>
       )}
 
-      {/* Axial Coordinates Label */}
+      {/* Entry Arrow Badge (Sherman Entry at 5,4) */}
+      {tile.isEntryHex && (
+        <g transform={`translate(${center.x}, ${center.y + radius * 0.45})`}>
+          <rect x={-22} y={-8} width={44} height={16} rx={4} fill="#475569" stroke="#94a3b8" strokeWidth={1} opacity={0.95} />
+          <text x={0} y={3} textAnchor="middle" fill="#f8fafc" fontSize="9" fontWeight="bold">
+            ENTRADA ➔
+          </text>
+        </g>
+      )}
+
+      {/* Exit Arrow Badge (Mission Exit at 2,0) */}
+      {tile.isExitHex && (
+        <g transform={`translate(${center.x}, ${center.y - radius * 0.45})`}>
+          <rect x={-22} y={-8} width={44} height={16} rx={4} fill="#dc2626" stroke="#fca5a5" strokeWidth={1} opacity={0.95} />
+          <text x={0} y={3} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
+            ⬆ SALIDA
+          </text>
+        </g>
+      )}
+
+      {/* Column, Row Coordinate Label */}
       <text
         x={center.x}
-        y={center.y - radius * 0.55}
+        y={center.y - radius * 0.58}
         textAnchor="middle"
         fill="#94a3b8"
-        fontSize="10"
+        fontSize="9"
         className="select-none font-mono opacity-80 pointer-events-none"
       >
-        {tile.coord.q},{tile.coord.r}
+        ({tile.coord.q},{tile.coord.r})
       </text>
     </g>
   );
 };
+
+export default HexTileSvg;

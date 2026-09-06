@@ -5,21 +5,21 @@
 import { AxialCoord, CubeCoord, Facing } from '../../types/game';
 
 /**
- * 6 Axial Direction Vectors for standard hex grids
- * 0: +q,  0 (East / 3 o'clock)
- * 1:  0, +r (South-East / 5 o'clock)
- * 2: -q, +r (South-West / 7 o'clock)
- * 3: -q,  0 (West / 9 o'clock)
- * 4:  0, -r (North-West / 11 o'clock)
- * 5: +q, -r (North-East / 1 o'clock)
+ * 6 Axial Direction Vectors for flat-topped hex grids
+ * 0: Norte (N)      - q:  0, r: -1
+ * 1: Noreste (NE)   - q: +1, r: -1
+ * 2: Sureste (SE)   - q: +1, r:  0
+ * 3: Sur (S)        - q:  0, r: +1
+ * 4: Suroeste (SO)  - q: -1, r: +1
+ * 5: Noroeste (NO)  - q: -1, r:  0
  */
 export const AXIAL_DIRECTIONS: readonly AxialCoord[] = [
-  { q: 1, r: 0 },   // 0
-  { q: 0, r: 1 },   // 1
-  { q: -1, r: 1 },  // 2
-  { q: -1, r: 0 },  // 3
-  { q: 0, r: -1 },  // 4
-  { q: 1, r: -1 },  // 5
+  { q: 0, r: -1 },  // 0: N
+  { q: 1, r: -1 },  // 1: NE
+  { q: 1, r: 0 },   // 2: SE
+  { q: 0, r: 1 },   // 3: S
+  { q: -1, r: 1 },  // 4: SW
+  { q: -1, r: 0 },  // 5: NW
 ];
 
 export function coordKey(coord: AxialCoord): string {
@@ -78,12 +78,12 @@ export function getDirectionBetween(from: AxialCoord, to: AxialCoord): Facing | 
 
   if (dq === 0 && dr === 0) return null;
 
-  if (dr === 0 && dq > 0) return 0;
-  if (dq === 0 && dr > 0) return 1;
-  if (dq < 0 && dr > 0 && dq === -dr) return 2;
-  if (dr === 0 && dq < 0) return 3;
-  if (dq === 0 && dr < 0) return 4;
-  if (dq > 0 && dr < 0 && dq === -dr) return 5;
+  if (dq === 0 && dr < 0) return 0; // N
+  if (dq > 0 && dr < 0 && dq === -dr) return 1; // NE
+  if (dq > 0 && dr === 0) return 2; // SE
+  if (dq === 0 && dr > 0) return 3; // S
+  if (dq < 0 && dr > 0 && dq === -dr) return 4; // SW
+  if (dq < 0 && dr === 0) return 5; // NW
 
   return null;
 }

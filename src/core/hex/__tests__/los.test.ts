@@ -31,7 +31,7 @@ function createMockBoardState(terrainMap: Record<string, HexTile['terrain']> = {
 describe('Line of Sight (LOS) Engine', () => {
   it('returns CLEAR LOS over open field in straight line', () => {
     const board = createMockBoardState();
-    const result = checkLOS({ q: 0, r: 0 }, { q: 4, r: 0 }, board);
+    const result = checkLOS({ q: 0, r: 0 }, { q: 0, r: -4 }, board);
 
     expect(result.hasLOS).toBe(true);
     expect(result.reason).toBe('CLEAR');
@@ -50,14 +50,14 @@ describe('Line of Sight (LOS) Engine', () => {
 
   it('blocks LOS if intermediate hex contains Woods', () => {
     const board = createMockBoardState({
-      '2,0': 'woods', // Intermediate obstacle
+      '0,-2': 'woods', // Intermediate obstacle
     });
 
-    const result = checkLOS({ q: 0, r: 0 }, { q: 4, r: 0 }, board);
+    const result = checkLOS({ q: 0, r: 0 }, { q: 0, r: -4 }, board);
 
     expect(result.hasLOS).toBe(false);
     expect(result.reason).toBe('BLOCKED_BY_OBSTACLE');
-    expect(result.blockingCoord).toEqual({ q: 2, r: 0 });
+    expect(result.blockingCoord).toEqual({ q: 0, r: -2 });
   });
 
   it('blocks LOS if intermediate hex contains Building', () => {
@@ -74,10 +74,10 @@ describe('Line of Sight (LOS) Engine', () => {
 
   it('allows LOS TO a target inside Woods or Building (does not block vision TO target)', () => {
     const board = createMockBoardState({
-      '4,0': 'woods', // Target itself is in woods
+      '0,-4': 'woods', // Target itself is in woods
     });
 
-    const result = checkLOS({ q: 0, r: 0 }, { q: 4, r: 0 }, board);
+    const result = checkLOS({ q: 0, r: 0 }, { q: 0, r: -4 }, board);
 
     expect(result.hasLOS).toBe(true);
     expect(result.reason).toBe('CLEAR');
@@ -85,11 +85,11 @@ describe('Line of Sight (LOS) Engine', () => {
 
   it('counts tree lines crossed along intermediate hex edges', () => {
     const board = createMockBoardState();
-    // Add treeline to edge of hex (2,0) in dir 0 (East)
-    const tile2_0 = board.tiles.get('2,0')!;
-    tile2_0.edges[0] = 'treeline';
+    // Add treeline to edge of hex (0,-2) in dir 0 (North)
+    const tile0_2 = board.tiles.get('0,-2')!;
+    tile0_2.edges[0] = 'treeline';
 
-    const result = checkLOS({ q: 0, r: 0 }, { q: 4, r: 0 }, board);
+    const result = checkLOS({ q: 0, r: 0 }, { q: 0, r: -4 }, board);
 
     expect(result.hasLOS).toBe(true);
     expect(result.treeLineCount).toBe(1);

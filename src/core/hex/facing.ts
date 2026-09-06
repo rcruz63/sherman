@@ -17,12 +17,12 @@ export function getClosestDirection(from: AxialCoord, to: AxialCoord): Facing {
   const dq = to.q - from.q;
   const dr = to.r - from.r;
 
-  // Approximate using angle in 2D space (using pointy hex math layout)
-  const x = Math.sqrt(3) * (dq + dr / 2);
-  const y = (3 / 2) * dr;
+  // Flat-topped hex 2D position (x right, y down)
+  const x = 1.5 * dq;
+  const y = Math.sqrt(3) * (dr + dq / 2);
 
-  // Angle in radians [-PI, PI]
-  let angle = Math.atan2(y, x);
+  // Angle in radians relative to North (screen -y)
+  let angle = Math.atan2(x, -y);
   if (angle < 0) angle += 2 * Math.PI;
 
   // Each sector is 60 degrees (PI / 3)

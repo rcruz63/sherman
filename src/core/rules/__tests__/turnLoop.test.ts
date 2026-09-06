@@ -56,23 +56,25 @@ describe('Stage 3 - Game Loop & German AI Tests', () => {
   describe('German AI Turning Rules Logic', () => {
     it('does not turn if directly facing Sherman (Rule 3)', () => {
       const boardState = loadMissionState(mission1, { selectedBlackSpawns: [1] });
-      // Sherman at (1,8), Tank at (1,1) facing 1 (South-East towards Sherman)
+      // Position Sherman at (2,4) and Tank at (2,0) facing 3 (South towards Sherman)
+      boardState.sherman.coord = { q: 2, r: 4 };
       const tank = boardState.enemyTanks[0];
-      tank.coord = { q: 1, r: 1 };
-      tank.facing = 1; // Facing South-East towards (1,8)
+      tank.coord = { q: 2, r: 0 };
+      tank.facing = 3; // Facing South towards (2,4)
 
       const nextFacing = calculateAITurningFacing(tank, boardState);
-      expect(nextFacing).toBe(1); // Does not turn!
+      expect(nextFacing).toBe(3); // Does not turn!
     });
 
     it('turns towards Sherman by smallest angle when offset', () => {
       const boardState = loadMissionState(mission1, { selectedBlackSpawns: [1] });
+      boardState.sherman.coord = { q: 2, r: 4 };
       const tank = boardState.enemyTanks[0];
-      tank.coord = { q: 1, r: 1 };
-      tank.facing = 0; // Facing East (0), Sherman is South-East (1)
+      tank.coord = { q: 2, r: 0 };
+      tank.facing = 2; // Facing SE (2), Sherman is South (3)
 
       const nextFacing = calculateAITurningFacing(tank, boardState);
-      expect(nextFacing).toBe(1); // Turns +1 towards Sherman
+      expect(nextFacing).toBe(3); // Turns +1 towards Sherman
     });
   });
 
@@ -83,8 +85,8 @@ describe('Stage 3 - Game Loop & German AI Tests', () => {
       // Destroy all enemies
       boardState.enemyTanks.forEach((t) => (t.status = 'destroyed'));
 
-      // Move Sherman to exit hex (1,0)
-      boardState.sherman.coord = { q: 1, r: 0 };
+      // Move Sherman to exit hex (2,0)
+      boardState.sherman.coord = { q: 2, r: 0 };
 
       const gameEnd = checkGameEndConditions(boardState);
       expect(gameEnd.isGameOver).toBe(true);

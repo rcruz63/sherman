@@ -55,17 +55,19 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   loadMission: (missionData = mission1Data, options?: LoadMissionOptions) => {
     const boardState = loadMissionState(missionData, options);
 
-    const enemySpawnsInfo = boardState.enemyTanks
-      .map((t) => `${t.type.toUpperCase()} #${t.spawnNumber} en (${t.coord.q},${t.coord.r}) encarando ${t.facing}`)
-      .join('; ');
+    const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
+    const enemyLogs = boardState.enemyTanks.map((t) => {
+      const fName = facingNames[t.facing] || `${t.facing}`;
+      return `Despliegue ${t.type.toUpperCase()} #${t.spawnNumber}: Posición (${t.coord.q},${t.coord.r}), encaramiento ${fName}.`;
+    });
 
     set({
       boardState,
       gameEndStatus: null,
       combatLog: [
-        `Misión "${missionData.title}" cargada exitosamente.`,
-        `Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}).`,
-        `Enemigos desplegados: ${enemySpawnsInfo}.`,
+        `📋 Misión "${missionData.title}" cargada exitosamente.`,
+        ` Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento NO (5).`,
+        ...enemyLogs,
       ],
     });
   },
@@ -182,6 +184,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     if (!boardState) return;
 
     const newFacing = ((boardState.sherman.facing + deltaFacing + 6) % 6) as Facing;
+    const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
 
     set((state) => {
       if (!state.boardState) return state;
@@ -195,7 +198,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         },
         combatLog: [
           ...state.combatLog,
-          `🔄 Encaramiento Sherman cambiado a ${newFacing}`,
+          `🔄 Encaramiento Sherman cambiado a ${facingNames[newFacing]}`,
         ],
       };
     });
@@ -244,22 +247,38 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const roll1 = Math.floor(Math.random() * 6) + 1;
     const roll2 = Math.floor(Math.random() * 6) + 1;
     const rollTotal = roll1 + roll2;
-
     const hitSuccess = rollTotal >= hitCalc.totalDifficulty;
+
+    const diffParts: string[] = [`TAM ${target.size}`, `Dist ${hitCalc.baseDistance}`];
+    if (hitCalc.buildingModifier) diffParts.push('Cobertura Edificio +1');
+    if (hitCalc.treeLineModifier) diffParts.push(`Arboleda +${hitCalc.treeLineModifier}`);
+    if (hitCalc.smokeModifier) diffParts.push('Humo +1');
+    if (hitCalc.hullDownModifier) diffParts.push('Desenfilada +2');
+    if (hitCalc.rearArcModifier) diffParts.push('Arco Trasero +1');
+
     const logMessages: string[] = [
-      `🎯 Disparo Sherman a ${target.type.toUpperCase()} #${target.spawnNumber}: Dificultad ${hitCalc.totalDifficulty} ➔ Tirada 2d6 [${roll1}+${roll2}=${rollTotal}]`,
+      `🎯 Sherman dispara a ${target.type.toUpperCase()} (${target.coord.q},${target.coord.r}): Dificultad ${hitCalc.totalDifficulty} (${diffParts.join(' + ')}). Tirada 2d6 = [${roll1}, ${roll2}] = ${rollTotal} ➔ ${hitSuccess ? 'IMPACTO' : 'FALLADO'}.`,
     ];
 
     let updatedTanks = [...boardState.enemyTanks];
 
     if (hitSuccess) {
       const targetArmor = target.armor[hitCalc.impactSector];
-      const damageRes = resolveDamageCheck(boardState.sherman.gunPenetration, targetArmor, rollTotal);
-      logMessages.push(`¡IMPACTO en sector ${hitCalc.impactSector}! ${damageRes.detail}`);
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const dTotal = d1 + d2;
+      const damageRes = resolveDamageCheck(boardState.sherman.gunPenetration, targetArmor, dTotal);
+
+      logMessages.push(
+        `¿Daños? Pen ${boardState.sherman.gunPenetration} vs Blindaje ${hitCalc.impactSector} ${targetArmor} ➔ Tirada 2d6 = [${d1}, ${d2}] = ${dTotal} ➔ ${
+          damageRes.result === 'NO_EFFECT' ? 'SIN PENETRACIÓN' : 'DAÑO INFLIGIDO'
+        }.`
+      );
 
       if (damageRes.result === 'DAMAGED' || damageRes.result === 'DESTROYED') {
-        const damageEffect = resolveDamageEffect('germanTank', Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1);
-        logMessages.push(`Efecto Daño Enemigo: ${damageEffect.description}`);
+        const effectRoll = Math.floor(Math.random() * 6) + 1;
+        const damageEffect = resolveDamageEffect('germanTank', effectRoll);
+        logMessages.push(`Efecto de daño: Tirada d6 = ${effectRoll} ➔ ${target.type.toUpperCase()} queda ${damageEffect.description.toUpperCase()}.`);
 
         updatedTanks = updatedTanks.map((t) => {
           if (t.id === target.id) {
@@ -269,8 +288,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           return t;
         });
       }
-    } else {
-      logMessages.push(`Disparo fallado (${rollTotal} < Dificultad ${hitCalc.totalDifficulty}).`);
     }
 
     set((state) => {

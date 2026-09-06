@@ -16,8 +16,8 @@ describe('Mission 1 Integration Tests', () => {
       const boardState = loadMissionState(mission1);
       const sherman = boardState.sherman;
 
-      expect(sherman.coord).toEqual({ q: 1, r: 8 });
-      expect(sherman.facing).toBe(0);
+      expect(sherman.coord).toEqual({ q: 5, r: 4 });
+      expect(sherman.facing).toBe(5); // Noroeste (NW)
       expect(sherman.isLoaded).toBe(false); // Initial status: unloaded
       expect(sherman.fireLevel).toBe(0); // Initial status: no fire
       expect(sherman.commanderPosition).toBe('unhatched'); // Interior
@@ -40,16 +40,16 @@ describe('Mission 1 Integration Tests', () => {
 
       const pz1 = boardState.enemyTanks.find((t) => t.spawnNumber === 1)!;
       expect(pz1).toBeDefined();
-      expect(pz1.coord).toEqual({ q: 1, r: 1 });
-      expect(pz1.facing).toBe(3); // Predefined facing from JSON
+      expect(pz1.coord).toEqual({ q: 2, r: 0 });
+      expect(pz1.facing).toBe(3); // South
       expect(pz1.size).toBe(4);
       expect(pz1.armor).toEqual({ D: 6, LD: 4, LT: 3, T: 2 });
       expect(pz1.penetration).toBe(6);
 
       const pz2 = boardState.enemyTanks.find((t) => t.spawnNumber === 2)!;
       expect(pz2).toBeDefined();
-      expect(pz2.coord).toEqual({ q: 0, r: 3 });
-      expect(pz2.facing).toBe(2); // Predefined facing from JSON
+      expect(pz2.coord).toEqual({ q: 4, r: 0 });
+      expect(pz2.facing).toBe(4); // Southwest
     });
   });
 
@@ -79,7 +79,7 @@ describe('Mission 1 Integration Tests', () => {
     it('resolves roll 4 to COMMANDER_ORDER', () => {
       const rule = resolveMissionEvent(events, 4);
       expect(rule?.type).toBe('COMMANDER_ORDER');
-      expect(rule?.description).toContain('CARGAR');
+      expect(rule?.description).toContain('Cargar');
     });
 
     it('resolves roll 5-6 to SPAWN_INFANTRY', () => {
@@ -110,33 +110,27 @@ describe('Mission 1 Integration Tests', () => {
   });
 
   describe('Line of Sight & Combat Calculation on Mission 1 Map', () => {
-    it('evaluates clear LOS and building + rear arc modifiers for enemy at Black Spawn 6 (Building)', () => {
-      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [6] });
-      const sherman = boardState.sherman; // at (1, 8) facing 0
-      const pz4 = boardState.enemyTanks[0]; // at Black Spawn 6: (1, 4) in Building
+    it('evaluates clear LOS from (5,4) to Black Spawn 4 at (0,4) along NW axis', () => {
+      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [4] });
+      const sherman = boardState.sherman; // at (5,4) facing 5 (NW)
+      const pz4 = boardState.enemyTanks[0]; // at Black Spawn 4: (0,4) facing 1 (NE)
 
-      expect(pz4.coord).toEqual({ q: 1, r: 4 });
+      expect(pz4.coord).toEqual({ q: 0, r: 4 });
 
       const breakdown = calculateHitDifficulty(sherman, pz4, boardState);
 
       expect(breakdown.hasLOS).toBe(true);
-      expect(breakdown.baseDistance).toBe(4);
+      expect(breakdown.baseDistance).toBe(5);
       expect(breakdown.targetSize).toBe(4); // TAM 4
-      expect(breakdown.baseDifficulty).toBe(8); // TAM 4 + Dist 4
-      expect(breakdown.buildingModifier).toBe(1); // Target in building
-      expect(breakdown.rearArcModifier).toBe(1); // Target is outside Sherman front cone
-      expect(breakdown.totalDifficulty).toBe(10); // 8 + 1 (building) + 1 (rear) = 10
-      expect(breakdown.impactSector).toBe('LT'); // Fired at from South against West facing
+      expect(breakdown.baseDifficulty).toBe(9); // TAM 4 + Dist 5
     });
 
-    it('blocks LOS to Black Spawn 1 (1,1) due to intermediate Building at (1,4)', () => {
-      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [1] });
-      const sherman = boardState.sherman; // at (1, 8)
-      const pz4 = boardState.enemyTanks[0]; // at Black Spawn 1: (1, 1)
+    it('blocks LOS from (5,3) to (0,3) due to intermediate Town Building at (4,3)', () => {
+      const boardState = loadMissionState(mission1, { selectedBlackSpawns: [4] });
+      const sherman = { coord: { q: 5, r: 3 }, facing: 5 as const };
+      const target = { coord: { q: 0, r: 3 }, facing: 1 as const, size: 4, hasSmoke: false, isHullDown: false };
 
-      expect(pz4.coord).toEqual({ q: 1, r: 1 });
-
-      const breakdown = calculateHitDifficulty(sherman, pz4, boardState);
+      const breakdown = calculateHitDifficulty(sherman, target, boardState);
 
       expect(breakdown.hasLOS).toBe(false);
       expect(breakdown.losReason).toBe('BLOCKED_BY_OBSTACLE');

@@ -35,21 +35,21 @@ describe('Hexagonal Math Engine', () => {
     expect(hexDistance({ q: 1, r: -4 }, { q: -2, r: 2 })).toBe(6);
   });
 
-  it('identifies straight lines along the 6 hex directions', () => {
+  it('identifies straight lines along the 6 flat-topped hex directions', () => {
     const origin = { q: 0, r: 0 };
 
-    // Dir 0: East (+q, 0)
-    expect(getDirectionBetween(origin, { q: 4, r: 0 })).toBe(0);
-    // Dir 1: South-East (0, +r)
-    expect(getDirectionBetween(origin, { q: 0, r: 3 })).toBe(1);
-    // Dir 2: South-West (-q, +r)
-    expect(getDirectionBetween(origin, { q: -2, r: 2 })).toBe(2);
-    // Dir 3: West (-q, 0)
-    expect(getDirectionBetween(origin, { q: -5, r: 0 })).toBe(3);
-    // Dir 4: North-West (0, -r)
-    expect(getDirectionBetween(origin, { q: 0, r: -3 })).toBe(4);
-    // Dir 5: North-East (+q, -r)
-    expect(getDirectionBetween(origin, { q: 3, r: -3 })).toBe(5);
+    // Dir 0: Norte (0, -r)
+    expect(getDirectionBetween(origin, { q: 0, r: -3 })).toBe(0);
+    // Dir 1: Noreste (+q, -r)
+    expect(getDirectionBetween(origin, { q: 3, r: -3 })).toBe(1);
+    // Dir 2: Sureste (+q, 0)
+    expect(getDirectionBetween(origin, { q: 4, r: 0 })).toBe(2);
+    // Dir 3: Sur (0, +r)
+    expect(getDirectionBetween(origin, { q: 0, r: 3 })).toBe(3);
+    // Dir 4: Suroeste (-q, +r)
+    expect(getDirectionBetween(origin, { q: -2, r: 2 })).toBe(4);
+    // Dir 5: Noroeste (-q, 0)
+    expect(getDirectionBetween(origin, { q: -5, r: 0 })).toBe(5);
 
     // Non-straight lines
     expect(getDirectionBetween(origin, { q: 1, r: 2 })).toBeNull();

@@ -4,14 +4,19 @@
 
 import {
   ArmorStats,
+  AxialCoord,
+  BlackSpawnPoint,
   BoardHex,
   BoardState,
   CrewMember,
+  EdgeFeature,
   EnemyInfantry,
   EnemyTank,
   EnemyTruck,
   EventRule,
+  Facing,
   MissionJSON,
+  RedSpawnPoint,
   ShermanDicePoolConfig,
   ShermanState,
   TerrainType,
@@ -80,6 +85,26 @@ export interface LoadMissionOptions {
   selectedBlackSpawns?: number[]; // Fixed spawn numbers for deterministic testing/replays
 }
 
+export const DIR_STRING_MAP: Record<string, Facing> = {
+  N: 0,
+  NE: 1,
+  SE: 2,
+  S: 3,
+  SW: 4,
+  SO: 4,
+  NW: 5,
+  NO: 5,
+};
+
+export function parseAxialCoord(
+  hex?: AxialCoord | { col: number; row: number } | { q?: number; r?: number; col?: number; row?: number }
+): AxialCoord {
+  if (!hex) return { q: 0, r: 0 };
+  const q = (hex as any).q ?? (hex as any).col ?? 0;
+  const r = (hex as any).r ?? (hex as any).row ?? 0;
+  return { q, r };
+}
+
 /**
  * Loads a mission JSON into a fully initialized BoardState
  */
@@ -88,68 +113,146 @@ export function loadMissionState(
   options?: LoadMissionOptions
 ): BoardState {
   const tileMap = new Map<string, BoardHex>();
+  const blackNumbers: BlackSpawnPoint[] = [];
+  const redNumbers: RedSpawnPoint[] = [];
 
-  // Generate grid tiles according to map dimensions
-  for (let q = 0; q < missionData.map.columns; q++) {
-    for (let r = 0; r < missionData.map.rows; r++) {
-      let terrain: TerrainType = 'field';
-
-      // Center line road for maps
-      if (q === 1) terrain = 'road';
-      if ((q === 0 && r === 3) || (q === 2 && r === 4)) terrain = 'woods';
-      if (q === 1 && r === 4) terrain = 'building';
-
+  if (missionData.hexes && missionData.hexes.length > 0) {
+    // Declarative Hexes Array (e.g. Mission 1 flat-topped 36-hex grid)
+    missionData.hexes.forEach((h) => {
+      const q = h.col ?? (h as any).q;
+      const r = h.row ?? (h as any).r;
       const key = `${q},${r}`;
-      tileMap.set(key, {
+
+      let terrain: TerrainType = 'field';
+      const rawTerrain = (h.terrain || '').toLowerCase();
+      if (h.hasBuilding || rawTerrain === 'building') terrain = 'building';
+      else if (rawTerrain === 'road') terrain = 'road';
+      else if (rawTerrain === 'mud') terrain = 'mud';
+      else if (rawTerrain === 'woods') terrain = 'woods';
+
+      const edges: [EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature, EdgeFeature] = [
+        'none', 'none', 'none', 'none', 'none', 'none'
+      ];
+
+      const treeLineFacings: Facing[] = [];
+      if (h.treeLines) {
+        h.treeLines.forEach((str) => {
+          const dir = DIR_STRING_MAP[str.toUpperCase()];
+          if (dir !== undefined) {
+            treeLineFacings.push(dir);
+            edges[dir] = 'treeline';
+          }
+        });
+      }
+
+      const roadEdgeFacings: Facing[] = [];
+      if (h.roadEdges) {
+        h.roadEdges.forEach((str) => {
+          const dir = DIR_STRING_MAP[str.toUpperCase()];
+          if (dir !== undefined) {
+            roadEdgeFacings.push(dir);
+          }
+        });
+      }
+
+      const exitCoord = missionData.victoryConditions.exitHex ? parseAxialCoord(missionData.victoryConditions.exitHex) : null;
+      const isExit = !!h.isExit || (
+        !!missionData.victoryConditions.requireMapExit &&
+        !!exitCoord && exitCoord.q === q && exitCoord.r === r
+      );
+
+      const entryCoord = missionData.playerDeployment.hex ? parseAxialCoord(missionData.playerDeployment.hex) : null;
+      const isEntry = !!h.isEntry || (
+        !!entryCoord && entryCoord.q === q && entryCoord.r === r
+      );
+
+      const tile: BoardHex = {
         coord: { q, r },
         terrain,
-        edges: ['none', 'none', 'none', 'none', 'none', 'none'],
-        isExitHex: !!(
-          missionData.victoryConditions.requireMapExit &&
-          missionData.victoryConditions.exitHex &&
-          missionData.victoryConditions.exitHex.q === q &&
-          missionData.victoryConditions.exitHex.r === r
-        ),
-        isBridge: missionData.specialRules?.bridge &&
-          missionData.specialRules.bridge.hex.q === q &&
-          missionData.specialRules.bridge.hex.r === r,
-      });
+        edges,
+        hasBuilding: h.hasBuilding,
+        buildingType: h.buildingType,
+        treeLines: treeLineFacings,
+        roadEdges: roadEdgeFacings,
+        blackSpawnNumber: h.blackSpot?.number,
+        blackSpawnFacing: h.blackSpot?.facing,
+        redSpawnNumber: h.redSpot,
+        isEntryHex: isEntry,
+        isExitHex: isExit,
+      };
+
+      tileMap.set(key, tile);
+
+      if (h.blackSpot) {
+        blackNumbers.push({
+          number: h.blackSpot.number,
+          hex: { q, r },
+          facing: h.blackSpot.facing,
+        });
+      }
+
+      if (h.redSpot !== undefined) {
+        redNumbers.push({
+          number: h.redSpot,
+          hex: { q, r },
+        });
+      }
+    });
+  } else if (missionData.map) {
+    // Legacy Rectangular Grid Generation
+    for (let q = 0; q < missionData.map.columns; q++) {
+      for (let r = 0; r < missionData.map.rows; r++) {
+        let terrain: TerrainType = 'field';
+
+        if (q === 1) terrain = 'road';
+        if ((q === 0 && r === 3) || (q === 2 && r === 4)) terrain = 'woods';
+        if (q === 1 && r === 4) terrain = 'building';
+
+        const exitCoord = missionData.victoryConditions.exitHex ? parseAxialCoord(missionData.victoryConditions.exitHex) : null;
+        const key = `${q},${r}`;
+        tileMap.set(key, {
+          coord: { q, r },
+          terrain,
+          edges: ['none', 'none', 'none', 'none', 'none', 'none'],
+          isExitHex: !!(
+            missionData.victoryConditions.requireMapExit &&
+            exitCoord && exitCoord.q === q && exitCoord.r === r
+          ),
+          isBridge: missionData.specialRules?.bridge &&
+            missionData.specialRules.bridge.hex.q === q &&
+            missionData.specialRules.bridge.hex.r === r,
+        });
+      }
     }
   }
 
-  // Overlay Black Spawn points (tanks)
-  missionData.spawnPoints.blackNumbers.forEach((sp) => {
-    const key = coordKey(sp.hex);
-    const tile = tileMap.get(key);
-    if (tile) {
-      tile.blackSpawnNumber = sp.number;
-      tile.blackSpawnFacing = sp.facing;
-    } else {
-      tileMap.set(key, {
-        coord: sp.hex,
-        terrain: 'field',
-        edges: ['none', 'none', 'none', 'none', 'none', 'none'],
-        blackSpawnNumber: sp.number,
-        blackSpawnFacing: sp.facing,
-      });
-    }
-  });
+  // Overlay Black & Red Spawns if provided via spawnPoints field
+  if (missionData.spawnPoints?.blackNumbers) {
+    missionData.spawnPoints.blackNumbers.forEach((sp) => {
+      const key = coordKey(sp.hex);
+      const tile = tileMap.get(key);
+      if (tile) {
+        tile.blackSpawnNumber = sp.number;
+        tile.blackSpawnFacing = sp.facing;
+      }
+      if (!blackNumbers.some((b) => b.number === sp.number)) {
+        blackNumbers.push(sp);
+      }
+    });
+  }
 
-  // Overlay Red Spawn points (infantry)
-  missionData.spawnPoints.redNumbers.forEach((sp) => {
-    const key = coordKey(sp.hex);
-    const tile = tileMap.get(key);
-    if (tile) {
-      tile.redSpawnNumber = sp.number;
-    } else {
-      tileMap.set(key, {
-        coord: sp.hex,
-        terrain: 'field',
-        edges: ['none', 'none', 'none', 'none', 'none', 'none'],
-        redSpawnNumber: sp.number,
-      });
-    }
-  });
+  if (missionData.spawnPoints?.redNumbers) {
+    missionData.spawnPoints.redNumbers.forEach((sp) => {
+      const key = coordKey(sp.hex);
+      const tile = tileMap.get(key);
+      if (tile) {
+        tile.redSpawnNumber = sp.number;
+      }
+      if (!redNumbers.some((r) => r.number === sp.number)) {
+        redNumbers.push(sp);
+      }
+    });
+  }
 
   // Initialize Sherman State
   const crewState: Record<string, CrewMember> = {};
@@ -169,14 +272,16 @@ export function loadMissionState(
     };
   });
 
+  const shermanCoord = parseAxialCoord(missionData.playerDeployment.hex);
+
   const shermanState: ShermanState = {
-    coord: { ...missionData.playerDeployment.hex },
+    coord: shermanCoord,
     facing: missionData.playerDeployment.facing,
     commanderPosition: 'unhatched', // Interior
     isLoaded: missionData.playerDeployment.initialStatus.loaded,
     fireLevel: missionData.playerDeployment.initialStatus.fireLevel,
     isTurretDamaged: missionData.playerDeployment.initialStatus.turretDamaged,
-    isImmobilized: missionData.playerDeployment.initialStatus.immobilized, // E.g., true for Mission 6!
+    isImmobilized: missionData.playerDeployment.initialStatus.immobilized,
     hasSmoke: missionData.playerDeployment.initialStatus.smoke,
     isHullDown: missionData.playerDeployment.initialStatus.hullDown,
     armor: TANK_STATS.SHERMAN.armor,
@@ -185,7 +290,7 @@ export function loadMissionState(
   };
 
   // Process Enemy Tank Deployment
-  const availableBlackSpawns = [...missionData.spawnPoints.blackNumbers];
+  const availableBlackSpawns = [...blackNumbers];
   let spawnIndex = 0;
 
   if (!options?.selectedBlackSpawns) {
@@ -205,7 +310,7 @@ export function loadMissionState(
 
         if (options?.selectedBlackSpawns && spawnIndex < options.selectedBlackSpawns.length) {
           const targetNum = options.selectedBlackSpawns[spawnIndex];
-          sp = missionData.spawnPoints.blackNumbers.find((s) => s.number === targetNum);
+          sp = blackNumbers.find((s) => s.number === targetNum);
         } else {
           sp = availableBlackSpawns.find((s) => {
             if (usedBlackNumbers.has(s.number)) return false;
@@ -247,7 +352,7 @@ export function loadMissionState(
         enemyTrucks.push({
           id: `truck_${idx + 1}`,
           type: 'truck',
-          coord: { ...unit.hex },
+          coord: parseAxialCoord(unit.hex),
           facing: unit.facing,
           status: 'operational',
           moveIndex: truckRules?.moveIndex || 0,
@@ -276,7 +381,7 @@ export function loadMissionState(
         enemyInfantry.push({
           id: infConfig.id || `inf_${idx + 1}`,
           type: 'infantry',
-          coord: { ...infConfig.hex },
+          coord: parseAxialCoord(infConfig.hex),
           status: 'active',
           isObjective: infConfig.isObjective,
         });
