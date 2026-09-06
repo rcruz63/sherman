@@ -120,36 +120,37 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         </g>
       )}
 
-      {/* Village / Town Top-Down Hipped Rooftops with Garden Trees */}
+      {/* Village / Town Top-Down Hipped Rooftops positioned in outer corners */}
       {(tile.hasBuilding || tile.terrain === 'building') && (
         <g transform={`translate(${center.x}, ${center.y})`}>
-          {/* Main House Roof 1 */}
-          <g transform="translate(-6, -5) rotate(-12)">
-            <rect x={-8} y={-6} width={16} height={12} rx={1} fill="#9a3412" stroke="#451a03" strokeWidth={0.5} />
-            <path d="M -8 -6 L -2 0 L -8 6 M 8 -6 L 2 0 L 8 6 M -2 0 L 2 0" stroke="#7c2d12" strokeWidth={0.75} fill="none" />
-            <polygon points="-8,-6 -2,0 2,0 8,-6" fill="#c2410c" opacity={0.7} />
-            <polygon points="-8,6 -2,0 2,0 8,6" fill="#7c2d12" opacity={0.7} />
+          {/* Top-Left House Roof 1 */}
+          <g transform="translate(-13, -12) rotate(-15)">
+            <rect x={-6} y={-4} width={12} height={8} rx={1} fill="#9a3412" stroke="#451a03" strokeWidth={0.5} />
+            <path d="M -6 -4 L -1 0 L -6 4 M 6 -4 L 1 0 L 6 4 M -1 0 L 1 0" stroke="#7c2d12" strokeWidth={0.5} fill="none" />
+            <polygon points="-6,-4 -1,0 1,0 6,-4" fill="#c2410c" opacity={0.7} />
+            <polygon points="-6,4 -1,0 1,0 6,4" fill="#7c2d12" opacity={0.7} />
           </g>
 
-          {/* House Roof 2 */}
-          <g transform="translate(8, -6) rotate(18)">
-            <rect x={-6} y={-7} width={12} height={14} rx={1} fill="#b45309" stroke="#451a03" strokeWidth={0.5} />
-            <path d="M -6 -7 L 0 -2 L 6 -7 M -6 7 L 0 2 L 6 7 M 0 -2 L 0 2" stroke="#78350f" strokeWidth={0.75} fill="none" />
-            <polygon points="-6,-7 0,-2 6,-7" fill="#d97706" opacity={0.7} />
-            <polygon points="-6,7 0,2 6,7" fill="#78350f" opacity={0.7} />
+          {/* Top-Right House Roof 2 */}
+          <g transform="translate(13, -12) rotate(15)">
+            <rect x={-6} y={-5} width={12} height={10} rx={1} fill="#b45309" stroke="#451a03" strokeWidth={0.5} />
+            <path d="M -6 -5 L 0 -1 L 6 -5 M -6 5 L 0 1 L 6 5 M 0 -1 L 0 1" stroke="#78350f" strokeWidth={0.5} fill="none" />
+            <polygon points="-6,-5 0,-1 6,-5" fill="#d97706" opacity={0.7} />
+            <polygon points="-6,5 0,1 6,5" fill="#78350f" opacity={0.7} />
           </g>
 
-          {/* House Roof 3 */}
-          <g transform="translate(-4, 7) rotate(6)">
-            <rect x={-6} y={-4} width={12} height={8} rx={1} fill="#7c2d12" stroke="#451a03" strokeWidth={0.5} />
-            <path d="M -6 -4 L -1 0 L -6 4 M 6 -4 L 1 0 L 6 4 M -1 0 L 1 0" stroke="#451a03" strokeWidth={0.5} fill="none" />
-            <polygon points="-6,-4 -1,0 1,0 6,-4" fill="#9a3412" opacity={0.7} />
+          {/* Bottom-Left House Roof 3 */}
+          <g transform="translate(-13, 12) rotate(8)">
+            <rect x={-5} y={-4} width={10} height={8} rx={1} fill="#7c2d12" stroke="#451a03" strokeWidth={0.5} />
+            <path d="M -5 -4 L 0 -1 L 5 -4 M -5 4 L 0 1 L 5 4 M 0 -1 L 0 1" stroke="#451a03" strokeWidth={0.5} fill="none" />
+            <polygon points="-5,-4 0,-1 5,-4 0,-4" fill="#9a3412" opacity={0.7} />
           </g>
 
-          {/* Small Garden Trees & Hedges */}
-          <circle cx={4} cy={6} r={3.5} fill="#10b981" stroke="#065f46" strokeWidth={0.5} />
-          <circle cx={-13} cy={2} r={3.0} fill="#059669" stroke="#065f46" strokeWidth={0.5} />
-          <circle cx={14} cy={5} r={2.5} fill="#34d399" stroke="#065f46" strokeWidth={0.5} />
+          {/* Bottom-Right Hedges & Garden Trees */}
+          <g transform="translate(13, 12)">
+            <circle cx={-2} cy={-2} r={3.5} fill="#10b981" stroke="#065f46" strokeWidth={0.5} />
+            <circle cx={4} cy={2} r={2.8} fill="#059669" stroke="#065f46" strokeWidth={0.5} />
+          </g>
         </g>
       )}
 

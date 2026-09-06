@@ -1,7 +1,7 @@
 {
   "id": 2,
   "title": "Misión 2 - La Caza del Tiger",
-  "briefing": "Localiza y destruye el temido carro pesado Tiger alemán antes de escapar por la ruta norte designada. Cuidado con las carreteras minadas, el río y las patrullas de Panzer III.",
+  "briefing": "Destruir el Tiger y salir por la Salida.",
   "grid": {
     "orientation": "flat-topped",
     "columns": [
@@ -44,65 +44,57 @@
   },
   "enemyDeployment": {
     "tanks": [
-      {
-        "type": "TIGER",
-        "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS",
-        "count": 1
-      },
-      {
-        "type": "PANZER_III",
-        "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS",
-        "count": 2
-      }
+      { "type": "TIGER", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 },
+      { "type": "PANZER_III", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 2 }
     ],
     "infantry": []
   },
   "hexes": [
-    { "col": 0, "row": 0, "terrain": "FIELD", "blackSpot": { "number": 6, "facing": 1 } },
-    { "col": 0, "row": 1, "terrain": "MUD" },
-    { "col": 0, "row": 2, "terrain": "WATER", "redSpot": 1 },
-    { "col": 0, "row": 3, "terrain": "WOODS" },
-    { "col": 0, "row": 4, "terrain": "FIELD", "blackSpot": { "number": 4, "facing": 1 } },
+    { "col": 0, "row": 0, "terrain": "MUD", "blackSpot": { "number": 2, "facing": 2 } },
+    { "col": 0, "row": 1, "terrain": "WATER" },
+    { "col": 0, "row": 2, "terrain": "WATER", "treeLines": ["S"] },
+    { "col": 0, "row": 3, "terrain": "FIELD", "blackSpot": { "number": 1, "facing": 2 }, "roadEdges": ["NW", "SE"], "treeLines": ["N"] },
+    { "col": 0, "row": 4, "terrain": "FIELD" },
 
-    { "col": 1, "row": 0, "terrain": "WOODS", "redSpot": 6 },
-    { "col": 1, "row": 1, "terrain": "FIELD", "blackSpot": { "number": 1, "facing": 3 } },
+    { "col": 1, "row": 0, "terrain": "FIELD", "hasBuilding": true, "buildingType": "TOWN", "redSpot": 1 },
+    { "col": 1, "row": 1, "terrain": "FIELD" },
     { "col": 1, "row": 2, "terrain": "WATER" },
-    { "col": 1, "row": 3, "terrain": "FIELD", "redSpot": 3 },
-    { "col": 1, "row": 4, "terrain": "ROAD", "roadEdges": ["N", "S"] },
-    { "col": 1, "row": 5, "terrain": "FIELD" },
+    { "col": 1, "row": 3, "terrain": "FIELD", "treeLines": ["S", "SW", "N"] },
+    { "col": 1, "row": 4, "terrain": "FIELD", "roadEdges": ["NW", "SE"], "treeLines": ["N"] },
+    { "col": 1, "row": 5, "terrain": "FIELD", "hasBuilding": true, "buildingType": "TOWN", "redSpot": 4 },
 
-    { "col": 2, "row": 0, "terrain": "ROAD", "isExit": true, "roadEdges": ["S", "N"] },
-    { "col": 2, "row": 1, "terrain": "ROAD", "roadEdges": ["S", "N"] },
-    { "col": 2, "row": 2, "terrain": "WATER", "isBridge": true, "roadEdges": ["S", "N"] },
-    { "col": 2, "row": 3, "terrain": "ROAD", "hasBuilding": true, "buildingType": "TOWN", "roadEdges": ["N", "SE"] },
-    { "col": 2, "row": 4, "terrain": "FIELD", "redSpot": 2 },
-    { "col": 2, "row": 5, "terrain": "MUD" },
+    { "col": 2, "row": 0, "terrain": "FIELD", "blackSpot": { "number": 3, "facing": 3 }, "isExit": true },
+    { "col": 2, "row": 1, "terrain": "FIELD" },
+    { "col": 2, "row": 2, "terrain": "MUD", "treeLines": ["S", "SE"] },
+    { "col": 2, "row": 3, "terrain": "FIELD", "treeLines": ["N"] },
+    { "col": 2, "row": 4, "terrain": "FIELD", "treeLines": ["S", "SW", "N"] },
+    { "col": 2, "row": 5, "terrain": "FIELD", "roadEdges": ["NW", "SE"], "treeLines": ["N"] },
     { "col": 2, "row": 6, "terrain": "FIELD" },
 
     { "col": 3, "row": 0, "terrain": "FIELD" },
-    { "col": 3, "row": 1, "terrain": "WATER" },
-    { "col": 3, "row": 2, "terrain": "WATER" },
-    { "col": 3, "row": 3, "terrain": "ROAD", "blackSpot": { "number": 3, "facing": 4 }, "roadEdges": ["NW", "SE"] },
-    { "col": 3, "row": 4, "terrain": "MUD", "redSpot": 5 },
-    { "col": 3, "row": 5, "terrain": "ROAD", "roadEdges": ["NW", "S"] },
-    { "col": 3, "row": 6, "terrain": "ROAD", "isEntry": true, "roadEdges": ["N"] },
+    { "col": 3, "row": 1, "terrain": "FIELD", "treeLines": ["S"] },
+    { "col": 3, "row": 2, "terrain": "FIELD", "treeLines": ["N"] },
+    { "col": 3, "row": 3, "terrain": "FIELD" },
+    { "col": 3, "row": 4, "terrain": "WOODS", "redSpot": 5 },
+    { "col": 3, "row": 5, "terrain": "FIELD", "roadEdges": ["S", "NW", "NE"] },
+    { "col": 3, "row": 6, "terrain": "FIELD", "hasBuilding": true, "buildingType": "TOWN", "isEntry": true, "roadEdges": ["S", "N"], "redSpot": 6 },
 
-    { "col": 4, "row": 0, "terrain": "FIELD", "blackSpot": { "number": 2, "facing": 4 } },
-    { "col": 4, "row": 1, "terrain": "WOODS" },
-    { "col": 4, "row": 2, "terrain": "WATER" },
-    { "col": 4, "row": 3, "terrain": "ROAD", "hasBuilding": true, "buildingType": "TOWN", "redSpot": 4, "roadEdges": ["NW", "S"] },
-    { "col": 4, "row": 4, "terrain": "ROAD", "blackSpot": { "number": 5, "facing": 5 }, "roadEdges": ["N", "SW"] },
-    { "col": 4, "row": 5, "terrain": "FIELD" },
+    { "col": 4, "row": 0, "terrain": "MUD", "hasBuilding": true, "buildingType": "TOWN", "redSpot": 2, "treeLines": ["SW", "NW"] },
+    { "col": 4, "row": 1, "terrain": "MUD", "treeLines": ["S", "SE", "SW", "NW"] },
+    { "col": 4, "row": 2, "terrain": "FIELD", "treeLines": ["N"] },
+    { "col": 4, "row": 3, "terrain": "FIELD", "treeLines": ["S", "SE", "N"] },
+    { "col": 4, "row": 4, "terrain": "FIELD", "roadEdges": ["NE", "SW"], "treeLines": ["N"] },
+    { "col": 4, "row": 5, "terrain": "WATER", "treeLines": ["NE"] },
 
-    { "col": 5, "row": 0, "terrain": "FIELD" },
-    { "col": 5, "row": 1, "terrain": "FIELD" },
-    { "col": 5, "row": 2, "terrain": "WATER" },
-    { "col": 5, "row": 3, "terrain": "FIELD" },
-    { "col": 5, "row": 4, "terrain": "FIELD" }
+    { "col": 5, "row": 0, "terrain": "MUD", "blackSpot": { "number": 4, "facing": 4 }, "treeLines": ["S"] },
+    { "col": 5, "row": 1, "terrain": "FIELD", "treeLines": ["N"] },
+    { "col": 5, "row": 2, "terrain": "FIELD", "hasBuilding": true, "buildingType": "TOWN", "roadEdges": ["S", "NE"], "blackSpot": { "number": 5, "facing": 4 }, "redSpot": 3 },
+    { "col": 5, "row": 3, "terrain": "FIELD", "roadEdges": ["N", "SW"] },
+    { "col": 5, "row": 4, "terrain": "FIELD", "blackSpot": { "number": 6, "facing": 5 } }
   ],
   "shermanDicePool": {
     "maneuver": { "road": 2, "field": 1, "mud": 0 },
-    "attack": { "road": 1, "field": 2, "mud": 2 },
+    "attack": { "road": 2, "field": 2, "mud": 1 },
     "misc": { "road": 1, "field": 2, "mud": 1 }
   },
   "endOfTurnEvents": [

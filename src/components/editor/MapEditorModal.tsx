@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Facing, MissionJSON, RawHexConfig, RawTerrainType } from '../../types/game';
-import { autoFixMapConfig, validateMapConfig, ValidationResult, INDEX_TO_DIR } from '../../core/hex/mapValidator';
+import { autoFixMapConfig, validateMapConfig, ValidationResult, INDEX_TO_DIR, OPPOSITE_FACING } from '../../core/hex/mapValidator';
+import { hexNeighbor } from '../../core/hex/math';
 import { missions } from '../../data/missions';
 import { HexBoard } from '../board/HexBoard';
 import { loadMissionState } from '../../core/rules/missionLoader';
@@ -108,79 +109,124 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
   };
 
   const validation: ValidationResult = validateMapConfig(mission);
-  const previewState = loadMissionState(mission, { selectedBlackSpawns: [1, 2] });
+  const previewState = loadMissionState(mission, { selectedBlackSpawns: [] });
+  previewState.enemyTanks = []; // Ensure no dummy tanks hide spot badges in editor!
 
   const handleTileClick = (tile: { coord: { q: number; r: number } }) => {
     const hexes = mission.hexes || [];
     const updatedMission = JSON.parse(JSON.stringify(mission)) as MissionJSON;
 
+    const targetQ = tile.coord.q;
+    const targetR = tile.coord.r;
+
+    const dirIdx = selectedEdgeDir;
+    const dirStr = INDEX_TO_DIR[dirIdx];
+    const oppDirStr = INDEX_TO_DIR[OPPOSITE_FACING[dirIdx]];
+
+    const neighborCoord = hexNeighbor({ q: targetQ, r: targetR }, dirIdx);
+
+    // Determine toggled state for treeline or road
+    let shouldAddEdge = false;
+    const currentHex = hexes.find((h) => h.col === targetQ && h.row === targetR);
+    if (activeTool === 'treeline') {
+      shouldAddEdge = !currentHex?.treeLines?.includes(dirStr);
+    } else if (activeTool === 'road') {
+      shouldAddEdge = !currentHex?.roadEdges?.includes(dirStr);
+    }
+
     updatedMission.hexes = hexes.map((hex) => {
-      if (hex.col !== tile.coord.q || hex.row !== tile.coord.r) return hex;
+      const isTarget = hex.col === targetQ && hex.row === targetR;
+      const isNeighbor = hex.col === neighborCoord.q && hex.row === neighborCoord.r;
+
+      if (!isTarget && !isNeighbor) return hex;
 
       const newHex: RawHexConfig = { ...hex };
 
-      if (activeTool === 'terrain') {
-        newHex.terrain = selectedTerrain;
-        if (selectedTerrain === 'BUILDING') {
-          newHex.hasBuilding = true;
-          newHex.buildingType = 'TOWN';
-          if (hex.terrain === 'WATER' || hex.terrain === 'WOODS') {
-            newHex.terrain = 'FIELD';
+      if (isTarget) {
+        if (activeTool === 'terrain') {
+          newHex.terrain = selectedTerrain;
+          if (selectedTerrain === 'BUILDING') {
+            newHex.hasBuilding = true;
+            newHex.buildingType = 'TOWN';
+            if (hex.terrain === 'WATER' || hex.terrain === 'WOODS') {
+              newHex.terrain = 'FIELD';
+            }
+          } else {
+            if (selectedTerrain === 'WATER' || selectedTerrain === 'WOODS') {
+              newHex.hasBuilding = false;
+            }
           }
-        } else {
-          if (selectedTerrain === 'WATER' || selectedTerrain === 'WOODS') {
+          if (selectedTerrain !== 'WATER') {
+            newHex.isBridge = false;
+          }
+        } else if (activeTool === 'bridge') {
+          newHex.isBridge = !newHex.isBridge;
+          if (newHex.isBridge) {
+            newHex.terrain = 'WATER';
             newHex.hasBuilding = false;
           }
+        } else if (activeTool === 'treeline') {
+          const lines = newHex.treeLines ? [...newHex.treeLines] : [];
+          if (shouldAddEdge) {
+            if (!lines.includes(dirStr)) lines.push(dirStr);
+          } else {
+            newHex.treeLines = lines.filter((d) => d !== dirStr);
+          }
+          if (shouldAddEdge) newHex.treeLines = lines;
+        } else if (activeTool === 'road') {
+          const roads = newHex.roadEdges ? [...newHex.roadEdges] : [];
+          if (shouldAddEdge) {
+            if (!roads.includes(dirStr)) roads.push(dirStr);
+          } else {
+            newHex.roadEdges = roads.filter((d) => d !== dirStr);
+          }
+          if (shouldAddEdge) newHex.roadEdges = roads;
+        } else if (activeTool === 'blackSpot') {
+          if (newHex.blackSpot?.number === selectedSpotNum) {
+            delete newHex.blackSpot;
+          } else {
+            newHex.blackSpot = { number: selectedSpotNum, facing: selectedSpotFacing };
+          }
+        } else if (activeTool === 'redSpot') {
+          if (newHex.redSpot === selectedSpotNum) {
+            delete newHex.redSpot;
+          } else {
+            newHex.redSpot = selectedSpotNum;
+          }
+        } else if (activeTool === 'entryExit') {
+          if (!newHex.isEntry && !newHex.isExit) {
+            newHex.isEntry = true;
+            newHex.isExit = false;
+            updatedMission.playerDeployment.hex = { col: tile.coord.q, row: tile.coord.r };
+            updatedMission.playerDeployment.facing = selectedSpotFacing;
+          } else if (newHex.isEntry) {
+            newHex.isEntry = false;
+            newHex.isExit = true;
+            updatedMission.victoryConditions.exitHex = { col: tile.coord.q, row: tile.coord.r };
+          } else {
+            newHex.isExit = false;
+          }
         }
-        if (selectedTerrain !== 'WATER') {
-          newHex.isBridge = false;
-        }
-      } else if (activeTool === 'bridge') {
-        newHex.isBridge = !newHex.isBridge;
-        if (newHex.isBridge) {
-          newHex.terrain = 'WATER';
-          newHex.hasBuilding = false;
-        }
-      } else if (activeTool === 'treeline') {
-        const dirStr = INDEX_TO_DIR[selectedEdgeDir];
-        const lines = newHex.treeLines ? [...newHex.treeLines] : [];
-        if (lines.includes(dirStr)) {
-          newHex.treeLines = lines.filter((d) => d !== dirStr);
-        } else {
-          newHex.treeLines = [...lines, dirStr];
-        }
-      } else if (activeTool === 'road') {
-        const dirStr = INDEX_TO_DIR[selectedEdgeDir];
-        const roads = newHex.roadEdges ? [...newHex.roadEdges] : [];
-        if (roads.includes(dirStr)) {
-          newHex.roadEdges = roads.filter((d) => d !== dirStr);
-        } else {
-          newHex.roadEdges = [...roads, dirStr];
-        }
-      } else if (activeTool === 'blackSpot') {
-        if (newHex.blackSpot?.number === selectedSpotNum) {
-          delete newHex.blackSpot;
-        } else {
-          newHex.blackSpot = { number: selectedSpotNum, facing: selectedSpotFacing };
-        }
-      } else if (activeTool === 'redSpot') {
-        if (newHex.redSpot === selectedSpotNum) {
-          delete newHex.redSpot;
-        } else {
-          newHex.redSpot = selectedSpotNum;
-        }
-      } else if (activeTool === 'entryExit') {
-        if (!newHex.isEntry && !newHex.isExit) {
-          newHex.isEntry = true;
-          newHex.isExit = false;
-          updatedMission.playerDeployment.hex = { col: tile.coord.q, row: tile.coord.r };
-          updatedMission.playerDeployment.facing = selectedSpotFacing;
-        } else if (newHex.isEntry) {
-          newHex.isEntry = false;
-          newHex.isExit = true;
-          updatedMission.victoryConditions.exitHex = { col: tile.coord.q, row: tile.coord.r };
-        } else {
-          newHex.isExit = false;
+      }
+
+      // Automatic reciprocal update on neighbor hex for treelines & roads
+      if (isNeighbor) {
+        if (activeTool === 'treeline') {
+          const lines = newHex.treeLines ? [...newHex.treeLines] : [];
+          if (shouldAddEdge) {
+            if (!lines.includes(oppDirStr)) lines.push(oppDirStr);
+          } else {
+            newHex.treeLines = lines.filter((d) => d !== oppDirStr);
+          }
+          if (shouldAddEdge) newHex.treeLines = lines;
+        } else if (activeTool === 'road') {
+          const roads = newHex.roadEdges ? [...newHex.roadEdges] : [];
+          if (shouldAddEdge) {
+            if (!roads.includes(oppDirStr)) roads.push(oppDirStr);
+          } else {
+            newHex.roadEdges = roads.filter((d) => d !== oppDirStr);
+          }
+          if (shouldAddEdge) newHex.roadEdges = roads;
         }
       }
 
