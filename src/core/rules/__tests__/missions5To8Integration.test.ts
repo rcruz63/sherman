@@ -152,7 +152,7 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
   });
 
   describe('Mission 8 - Asesinato (Oficial Objetivo en 0,0)', () => {
-    it('initializes 36 hexes, deploys officer at (0,0), 2 Panzer IVs, and checks victory on target kill + Panzer IVs destroyed + exit (5,0)', () => {
+    it('initializes 36 hexes, deploys officer at (0,0), 3 tanks (1 Tiger, 1 Panzer IV, 1 Panzer III), and checks victory on officer kill + exit (5,0) without needing tanks destroyed', () => {
       const boardState = loadMissionState(mission8);
 
       expect(boardState.tiles.size).toBe(36);
@@ -164,26 +164,27 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(officer).toBeDefined();
       expect(officer?.coord).toEqual({ q: 0, r: 0 });
 
-      // Check 2 Panzer IVs
-      expect(boardState.enemyTanks).toHaveLength(2);
-      expect(boardState.enemyTanks.every((t) => t.type === 'panzerIV')).toBe(true);
+      // Check 3 tanks: 1 Tiger, 1 Panzer IV, 1 Panzer III
+      expect(boardState.enemyTanks).toHaveLength(3);
+      expect(boardState.enemyTanks.some((t) => t.type === 'tiger')).toBe(true);
+      expect(boardState.enemyTanks.some((t) => t.type === 'panzerIV')).toBe(true);
+      expect(boardState.enemyTanks.some((t) => t.type === 'panzerIII')).toBe(true);
 
       // Check exit tile at (5,0)
       const exitTile = boardState.tiles.get('5,0');
       expect(exitTile?.isExitHex).toBe(true);
       expect(exitTile?.exitFacing).toBe(1);
 
-      // Incomplete victory: only officer eliminated
-      officer!.status = 'eliminated';
+      // Incomplete victory: Sherman at exit (5,0) but officer still alive
+      boardState.sherman.coord = { q: 5, r: 0 };
       let gameEnd = checkGameEndConditions(boardState);
       expect(gameEnd.isGameOver).toBe(false);
 
-      // Destroy Panzer IVs
-      boardState.enemyTanks.forEach((t) => (t.status = 'destroyed'));
+      // Eliminate officer while enemy tanks remain OPERATIONAL
+      officer!.status = 'eliminated';
+      expect(boardState.enemyTanks.every((t) => t.status === 'operational')).toBe(true);
 
-      // Move Sherman to exit hex (5,0)
-      boardState.sherman.coord = { q: 5, r: 0 };
-
+      // Victory is achieved because only officer elimination and map exit are required
       gameEnd = checkGameEndConditions(boardState);
       expect(gameEnd.isGameOver).toBe(true);
       expect(gameEnd.isVictory).toBe(true);

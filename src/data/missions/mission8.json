@@ -1,7 +1,7 @@
 {
   "id": 8,
   "title": "Misión 8 - Asesinato: Elimina al Oficial",
-  "briefing": "Un oficial alemán de alto rango se encuentra apostado en el edificio de (0,0). Elimina al oficial, destruye los dos carros Panzer IV que custodian el sector y evacúa por la flecha roja en (5,0).",
+  "briefing": "Un oficial alemán de alto rango se encuentra apostado en el edificio de (0,0). Elimina al oficial y evacúa por la ruta este en (5,0). (Nota: No es obligatorio abatir los tanques enemigos para ganar).",
   "grid": {
     "orientation": "flat-topped",
     "columns": [
@@ -32,9 +32,6 @@
     ]
   },
   "victoryConditions": {
-    "destroyAllEnemiesOfType": [
-      "PANZER_IV"
-    ],
     "destroySpecificUnit": "OFFICER_INFANTRY",
     "requireMapExit": true,
     "exitHex": {
@@ -97,9 +94,19 @@
   "enemyDeployment": {
     "tanks": [
       {
+        "type": "TIGER",
+        "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS",
+        "count": 1
+      },
+      {
         "type": "PANZER_IV",
         "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS",
-        "count": 2
+        "count": 1
+      },
+      {
+        "type": "PANZER_III",
+        "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS",
+        "count": 1
       }
     ],
     "infantry": [

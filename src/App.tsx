@@ -152,6 +152,9 @@ export const App: React.FC = () => {
               {(() => {
                 const vc = currentMission.victoryConditions;
                 const parts: string[] = [];
+                if (vc.destroySpecificUnit) {
+                  parts.push('Eliminar Oficial (0,0)');
+                }
                 if (vc.destroyAllInfantry) {
                   parts.push('Eliminar Infantería');
                 }
