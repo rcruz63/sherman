@@ -1,11 +1,16 @@
 import React from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { TurnPhase } from '../../types/game';
-import { calculateSectionDice, getAvailableDoubles } from '../../core/rules/shermanOperations';
+import {
+  calculateSectionDice,
+  getAvailableDoubles,
+} from '../../core/rules/shermanOperations';
 import { hexDistance } from '../../core/hex/math';
 import { calculateHitDifficulty } from '../../core/rules/combat';
 
 export const PhaseConsole: React.FC = () => {
+  const [selectedTrayDie, setSelectedTrayDie] = React.useState<number | null>(null);
+
   const {
     boardState,
     selectedTargetId,
@@ -30,7 +35,15 @@ export const PhaseConsole: React.FC = () => {
     runPhase7EndTurn,
   } = useGameStore();
 
-
+  React.useEffect(() => {
+    if (
+      selectedTrayDie !== null &&
+      (!boardState?.shermanOperations?.availableDice ||
+        !boardState.shermanOperations.availableDice.includes(selectedTrayDie))
+    ) {
+      setSelectedTrayDie(null);
+    }
+  }, [boardState?.shermanOperations?.availableDice, selectedTrayDie]);
 
   if (!boardState) return null;
   const currentPhase = boardState.currentPhase;
@@ -305,54 +318,112 @@ export const PhaseConsole: React.FC = () => {
 
                       {/* Dice Tray (once rolled) */}
                       {hasRolled && (
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-2">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-3">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-400 font-semibold uppercase tracking-wider">
                               Dados Disponibles ({availableDice.length} restantes de {rolledDice.length}):
                             </span>
-                            {availableDice.length === 0 && (
+                            {availableDice.length === 0 ? (
                               <span className="text-emerald-400 font-bold">¡Todos los dados han sido utilizados!</span>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">
+                                {selectedTrayDie !== null ? (
+                                  <span className="text-amber-300 font-bold">Dado [{selectedTrayDie}] seleccionado para la siguiente acción</span>
+                                ) : (
+                                  <span>(Haz clic en un dado para forzar su uso, o usa la selección automática óptima)</span>
+                                )}
+                              </span>
                             )}
                           </div>
 
                           <div className="flex flex-wrap gap-2 items-center">
-                            {rolledDice.map((val, idx) => {
-                              const isSpent = !availableDice.includes(val);
-                              let actionLabel = '';
-                              if (section === 'maneuver') {
-                                if (val === 1) actionLabel = 'Retroceder';
-                                else if (val <= 4) actionLabel = 'Girar';
-                                else actionLabel = 'Mover';
-                              } else if (section === 'attack') {
-                                if (val <= 2) actionLabel = 'Cargar';
-                                else if (val <= 4) actionLabel = 'MG Inf';
-                                else actionLabel = 'Cañón';
-                              } else if (section === 'misc') {
-                                if (val === 1) actionLabel = 'DCP/Carga';
-                                else if (val === 2) actionLabel = 'MG';
-                                else if (val === 3) actionLabel = 'Giro/Mover';
-                                else if (val === 4) actionLabel = 'Reparar';
-                                else if (val === 5) actionLabel = 'Humo/Rep';
-                                else if (val === 6) actionLabel = 'Extinguir';
-                              }
+                            {(() => {
+                              const remainingCounts: Record<number, number> = {};
+                              availableDice.forEach((d) => {
+                                remainingCounts[d] = (remainingCounts[d] || 0) + 1;
+                              });
 
-                              return (
-                                <div
-                                  key={idx}
-                                  className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl border-2 transition ${
-                                    isSpent
-                                      ? 'bg-slate-950 border-slate-800 text-slate-600 opacity-40'
-                                      : 'bg-slate-800 border-amber-500 text-amber-400 shadow-md'
-                                  }`}
-                                >
-                                  <span className="text-lg font-extrabold leading-none">{val}</span>
-                                  <span className="text-[9px] font-bold text-slate-300 mt-1 uppercase tracking-tighter text-center line-clamp-1">
-                                    {actionLabel}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                              return rolledDice.map((val, idx) => {
+                                const isAvailable = (remainingCounts[val] || 0) > 0;
+                                if (isAvailable) {
+                                  remainingCounts[val] -= 1;
+                                }
+                                const isSelected = selectedTrayDie === val && isAvailable;
+
+                                let actionLabel = '';
+                                if (section === 'maneuver') {
+                                  if (val === 1) actionLabel = 'Retroceder';
+                                  else if (val <= 4) actionLabel = 'Girar';
+                                  else actionLabel = 'Mover';
+                                } else if (section === 'attack') {
+                                  if (val <= 2) actionLabel = 'Cargar';
+                                  else if (val <= 4) actionLabel = 'MG Inf';
+                                  else actionLabel = 'Cañón';
+                                } else if (section === 'misc') {
+                                  if (val === 1) actionLabel = 'DCP/Carga';
+                                  else if (val === 2) actionLabel = 'MG';
+                                  else if (val === 3) actionLabel = 'Giro/Mover';
+                                  else if (val === 4) actionLabel = 'Reparar';
+                                  else if (val === 5) actionLabel = 'Humo/Rep';
+                                  else if (val === 6) actionLabel = 'Extinguir';
+                                }
+
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    disabled={!isAvailable}
+                                    onClick={() => {
+                                      if (!isAvailable) return;
+                                      setSelectedTrayDie((prev) => (prev === val ? null : val));
+                                    }}
+                                    className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl border-2 transition transform ${
+                                      !isAvailable
+                                        ? 'bg-slate-950 border-slate-800 text-slate-600 opacity-40 cursor-not-allowed'
+                                        : isSelected
+                                        ? 'bg-amber-500/25 border-amber-300 text-amber-300 ring-4 ring-amber-400 shadow-xl scale-105 font-black'
+                                        : 'bg-slate-800 border-amber-500/70 hover:border-amber-400 text-amber-400 shadow-md hover:scale-105 cursor-pointer'
+                                    }`}
+                                    title={
+                                      !isAvailable
+                                        ? 'Dado ya consumido'
+                                        : isSelected
+                                        ? `Dado [${val}] fijado manualmente. Haz clic para desmarcar`
+                                        : `Haz clic para fijar manualmente el Dado [${val}] para tu próxima acción`
+                                    }
+                                  >
+                                    <span className="text-lg font-extrabold leading-none">{val}</span>
+                                    <span className="text-[9px] font-bold text-slate-300 mt-1 uppercase tracking-tighter text-center line-clamp-1">
+                                      {actionLabel}
+                                    </span>
+                                  </button>
+                                );
+                              });
+                            })()}
                           </div>
+
+                          {/* Manual Selection Banner */}
+                          {selectedTrayDie !== null && (
+                            <div className="bg-amber-950/70 border border-amber-500/80 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="text-amber-300 font-bold flex items-center gap-1.5">
+                                  <span>🎯 Dado fijado manualmente:</span>
+                                  <span className="px-2 py-0.5 bg-amber-500 text-slate-950 font-black rounded-md text-sm shadow">
+                                    {selectedTrayDie}
+                                  </span>
+                                </span>
+                                <span className="text-slate-300 text-[11px] hidden sm:inline">
+                                  (La próxima acción táctica consumirá este dado en lugar de la selección automática óptima)
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setSelectedTrayDie(null)}
+                                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-lg text-[11px] font-semibold transition shadow-sm"
+                              >
+                                ✖ Desmarcar (Auto)
+                              </button>
+                            </div>
+                          )}
 
                           {/* Doubles Panel if available */}
                           {doubles.length > 0 && (
@@ -366,6 +437,7 @@ export const PhaseConsole: React.FC = () => {
                                     key={dIdx}
                                     disabled={!dOpt.allowed}
                                     onClick={() => {
+                                      setSelectedTrayDie(null);
                                       if (dOpt.actionKey === 'double_move') {
                                         executeManeuverForward({ type: 'double', value: dOpt.value });
                                       } else if (dOpt.actionKey === 'double_turn_left') {
@@ -401,49 +473,133 @@ export const PhaseConsole: React.FC = () => {
                             Acciones de Maniobra
                           </h5>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            <button
-                              onClick={() => executeManeuverForward()}
-                              disabled={sherman.isImmobilized || (!availableDice.includes(5) && !availableDice.includes(6))}
-                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
-                            >
-                              <span>🚗 Avanzar 1 Hex</span>
-                              <span className="text-[10px] text-amber-400 font-normal">
-                                Dado 5 o 6 ({countOf(5) + countOf(6)} disp.)
-                              </span>
-                            </button>
+                            {(() => {
+                              const canUseAdvance = selectedTrayDie === 5 || selectedTrayDie === 6;
+                              const isAdvanceDisabled =
+                                sherman.isImmobilized ||
+                                (selectedTrayDie !== null ? !canUseAdvance : (!availableDice.includes(5) && !availableDice.includes(6)));
 
-                            <button
-                              onClick={() => executeManeuverReverse()}
-                              disabled={sherman.isImmobilized || !availableDice.includes(1)}
-                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
-                            >
-                              <span>🔙 Retroceder 1 Hex</span>
-                              <span className="text-[10px] text-amber-400 font-normal">
-                                Dado 1 ({countOf(1)} disp.)
-                              </span>
-                            </button>
+                              return (
+                                <button
+                                  onClick={() => {
+                                    executeManeuverForward(
+                                      selectedTrayDie && canUseAdvance ? { type: 'single', value: selectedTrayDie } : undefined
+                                    );
+                                    setSelectedTrayDie(null);
+                                  }}
+                                  disabled={isAdvanceDisabled}
+                                  className={`min-h-[48px] p-2 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                                    selectedTrayDie !== null && canUseAdvance
+                                      ? 'bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400'
+                                      : 'bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100'
+                                  }`}
+                                >
+                                  <span>🚗 Avanzar 1 Hex</span>
+                                  <span className="text-[10px] text-amber-400 font-normal">
+                                    {selectedTrayDie !== null && canUseAdvance
+                                      ? `🎯 Usará Dado [${selectedTrayDie}]`
+                                      : `Dado 5 o 6 (${countOf(5) + countOf(6)} disp.)`}
+                                  </span>
+                                </button>
+                              );
+                            })()}
 
-                            <button
-                              onClick={() => executeManeuverTurn(-1)}
-                              disabled={!availableDice.includes(2) && !availableDice.includes(3) && !availableDice.includes(4)}
-                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
-                            >
-                              <span>↺ Girar Izq (-60°)</span>
-                              <span className="text-[10px] text-amber-400 font-normal">
-                                Dado 2, 3 o 4 ({countOf(2) + countOf(3) + countOf(4)} disp.)
-                              </span>
-                            </button>
+                            {(() => {
+                              const canUseReverse = selectedTrayDie === 1;
+                              const isReverseDisabled =
+                                sherman.isImmobilized ||
+                                (selectedTrayDie !== null ? !canUseReverse : !availableDice.includes(1));
 
-                            <button
-                              onClick={() => executeManeuverTurn(1)}
-                              disabled={!availableDice.includes(2) && !availableDice.includes(3) && !availableDice.includes(4)}
-                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
-                            >
-                              <span>↻ Girar Der (+60°)</span>
-                              <span className="text-[10px] text-amber-400 font-normal">
-                                Dado 2, 3 o 4 ({countOf(2) + countOf(3) + countOf(4)} disp.)
-                              </span>
-                            </button>
+                              return (
+                                <button
+                                  onClick={() => {
+                                    executeManeuverReverse(
+                                      selectedTrayDie && canUseReverse ? { type: 'single', value: selectedTrayDie } : undefined
+                                    );
+                                    setSelectedTrayDie(null);
+                                  }}
+                                  disabled={isReverseDisabled}
+                                  className={`min-h-[48px] p-2 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                                    selectedTrayDie !== null && canUseReverse
+                                      ? 'bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400'
+                                      : 'bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100'
+                                  }`}
+                                >
+                                  <span>🔙 Retroceder 1 Hex</span>
+                                  <span className="text-[10px] text-amber-400 font-normal">
+                                    {selectedTrayDie !== null && canUseReverse
+                                      ? '🎯 Usará Dado [1]'
+                                      : `Dado 1 (${countOf(1)} disp.)`}
+                                  </span>
+                                </button>
+                              );
+                            })()}
+
+                            {(() => {
+                              const canUseTurn = selectedTrayDie === 2 || selectedTrayDie === 3 || selectedTrayDie === 4;
+                              const isTurnDisabled =
+                                selectedTrayDie !== null
+                                  ? !canUseTurn
+                                  : (!availableDice.includes(2) && !availableDice.includes(3) && !availableDice.includes(4));
+
+                              return (
+                                <button
+                                  onClick={() => {
+                                    executeManeuverTurn(
+                                      -1,
+                                      selectedTrayDie && canUseTurn ? { type: 'single', value: selectedTrayDie } : undefined
+                                    );
+                                    setSelectedTrayDie(null);
+                                  }}
+                                  disabled={isTurnDisabled}
+                                  className={`min-h-[48px] p-2 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                                    selectedTrayDie !== null && canUseTurn
+                                      ? 'bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400'
+                                      : 'bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100'
+                                  }`}
+                                >
+                                  <span>↺ Girar Izq (-60°)</span>
+                                  <span className="text-[10px] text-amber-400 font-normal">
+                                    {selectedTrayDie !== null && canUseTurn
+                                      ? `🎯 Usará Dado [${selectedTrayDie}]`
+                                      : `Dado 2, 3 o 4 (${countOf(2) + countOf(3) + countOf(4)} disp.)`}
+                                  </span>
+                                </button>
+                              );
+                            })()}
+
+                            {(() => {
+                              const canUseTurn = selectedTrayDie === 2 || selectedTrayDie === 3 || selectedTrayDie === 4;
+                              const isTurnDisabled =
+                                selectedTrayDie !== null
+                                  ? !canUseTurn
+                                  : (!availableDice.includes(2) && !availableDice.includes(3) && !availableDice.includes(4));
+
+                              return (
+                                <button
+                                  onClick={() => {
+                                    executeManeuverTurn(
+                                      1,
+                                      selectedTrayDie && canUseTurn ? { type: 'single', value: selectedTrayDie } : undefined
+                                    );
+                                    setSelectedTrayDie(null);
+                                  }}
+                                  disabled={isTurnDisabled}
+                                  className={`min-h-[48px] p-2 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                                    selectedTrayDie !== null && canUseTurn
+                                      ? 'bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400'
+                                      : 'bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100'
+                                  }`}
+                                >
+                                  <span>↻ Girar Der (+60°)</span>
+                                  <span className="text-[10px] text-amber-400 font-normal">
+                                    {selectedTrayDie !== null && canUseTurn
+                                      ? `🎯 Usará Dado [${selectedTrayDie}]`
+                                      : `Dado 2, 3 o 4 (${countOf(2) + countOf(3) + countOf(4)} disp.)`}
+                                  </span>
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
@@ -501,60 +657,121 @@ export const PhaseConsole: React.FC = () => {
                             Acciones de Ataque
                           </h5>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            <button
-                              onClick={() => executeAttackLoad()}
-                              disabled={sherman.isLoaded || (!availableDice.includes(1) && !availableDice.includes(2))}
-                              className="min-h-[48px] p-2.5 bg-amber-950 hover:bg-amber-900 border border-amber-800 disabled:opacity-40 text-amber-400 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
-                            >
-                              <span>⚡ Cargar Cañón</span>
-                              <span className="text-[10px] text-slate-400 font-normal">
-                                Dado 1 o 2 ({countOf(1) + countOf(2)} disp.) {sherman.isLoaded ? '(Ya cargado)' : ''}
-                              </span>
-                            </button>
+                            {(() => {
+                              const canUseLoad = selectedTrayDie === 1 || selectedTrayDie === 2;
+                              const isLoadDisabled =
+                                sherman.isLoaded ||
+                                (selectedTrayDie !== null ? !canUseLoad : (!availableDice.includes(1) && !availableDice.includes(2)));
 
-                            <button
-                              onClick={() => {
-                                if (chosenTarget) executeAttackFireGun(chosenTarget);
-                              }}
-                              disabled={
+                              return (
+                                <button
+                                  onClick={() => {
+                                    executeAttackLoad(
+                                      selectedTrayDie && canUseLoad ? { type: 'single', value: selectedTrayDie } : undefined
+                                    );
+                                    setSelectedTrayDie(null);
+                                  }}
+                                  disabled={isLoadDisabled}
+                                  className={`min-h-[48px] p-2.5 border rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                                    selectedTrayDie !== null && canUseLoad
+                                      ? 'bg-amber-600 hover:bg-amber-500 border-amber-400 text-white ring-2 ring-amber-400'
+                                      : 'bg-amber-950 hover:bg-amber-900 border-amber-800 disabled:opacity-40 text-amber-400'
+                                  }`}
+                                >
+                                  <span>⚡ Cargar Cañón</span>
+                                  <span className="text-[10px] text-slate-400 font-normal">
+                                    {selectedTrayDie !== null && canUseLoad
+                                      ? `🎯 Usará Dado [${selectedTrayDie}]`
+                                      : `Dado 1 o 2 (${countOf(1) + countOf(2)} disp.) ${sherman.isLoaded ? '(Ya cargado)' : ''}`}
+                                  </span>
+                                </button>
+                              );
+                            })()}
+
+                            {(() => {
+                              const canUseFire = selectedTrayDie === 5 || selectedTrayDie === 6;
+                              const isFireDisabled =
                                 !sherman.isLoaded ||
                                 sherman.isTurretDamaged ||
                                 !chosenTarget ||
                                 !chosenTargetCalc?.hasLOS ||
-                                (!availableDice.includes(5) && !availableDice.includes(6))
-                              }
-                              className="min-h-[48px] p-2.5 bg-red-950 hover:bg-red-900 border border-red-800 disabled:opacity-40 text-red-400 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
-                            >
-                              <span>
-                                🎯 Disparar a {chosenTarget ? `${chosenTarget.type.toUpperCase()} #${chosenTarget.spawnNumber || ''}` : 'Objetivo'}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-normal">
-                                Dado 5 o 6 ({countOf(5) + countOf(6)} disp.) {
-                                  sherman.isTurretDamaged
-                                    ? '(Torreta averiada)'
-                                    : !sherman.isLoaded
-                                    ? '(Descargado)'
-                                    : !chosenTarget
-                                    ? '(Sin enemigo)'
-                                    : !chosenTargetCalc?.hasLOS
-                                    ? '(Sin visión)'
-                                    : `(Dif ${chosenTargetCalc.totalDifficulty}+)`
-                                }
-                              </span>
-                            </button>
+                                (selectedTrayDie !== null ? !canUseFire : (!availableDice.includes(5) && !availableDice.includes(6)));
 
-                            <button
-                              onClick={() => {
-                                if (adjacentInfantry[0]) executeAttackFireMG(adjacentInfantry[0]);
-                              }}
-                              disabled={adjacentInfantry.length === 0 || (!availableDice.includes(3) && !availableDice.includes(4))}
-                              className="min-h-[48px] p-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
-                            >
-                              <span>🔫 Disparar MG (7+ Infantería)</span>
-                              <span className="text-[10px] text-slate-400 font-normal">
-                                Dado 3 o 4 ({countOf(3) + countOf(4)} disp.) {adjacentInfantry.length === 0 ? '(Sin inf. adyacente)' : ''}
-                              </span>
-                            </button>
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (chosenTarget) {
+                                      executeAttackFireGun(
+                                        chosenTarget,
+                                        selectedTrayDie && canUseFire ? { type: 'single', value: selectedTrayDie } : undefined
+                                      );
+                                      setSelectedTrayDie(null);
+                                    }
+                                  }}
+                                  disabled={isFireDisabled}
+                                  className={`min-h-[48px] p-2.5 border rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                                    selectedTrayDie !== null && canUseFire
+                                      ? 'bg-red-700 hover:bg-red-600 border-red-400 text-white ring-2 ring-red-400'
+                                      : 'bg-red-950 hover:bg-red-900 border-red-800 disabled:opacity-40 text-red-400'
+                                  }`}
+                                >
+                                  <span>
+                                    🎯 Disparar a {chosenTarget ? `${chosenTarget.type.toUpperCase()} #${chosenTarget.spawnNumber || ''}` : 'Objetivo'}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-normal">
+                                    {selectedTrayDie !== null && canUseFire
+                                      ? `🎯 Usará Dado [${selectedTrayDie}]`
+                                      : `Dado 5 o 6 (${countOf(5) + countOf(6)} disp.) ${
+                                          sherman.isTurretDamaged
+                                            ? '(Torreta averiada)'
+                                            : !sherman.isLoaded
+                                            ? '(Descargado)'
+                                            : !chosenTarget
+                                            ? '(Sin enemigo)'
+                                            : !chosenTargetCalc?.hasLOS
+                                            ? '(Sin visión)'
+                                            : `(Dif ${chosenTargetCalc.totalDifficulty}+)`
+                                        }`}
+                                  </span>
+                                </button>
+                              );
+                            })()}
+
+                            {(() => {
+                              const canUseMG = selectedTrayDie === 3 || selectedTrayDie === 4;
+                              const isMGDisabled =
+                                adjacentInfantry.length === 0 ||
+                                (selectedTrayDie !== null ? !canUseMG : (!availableDice.includes(3) && !availableDice.includes(4)));
+
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (adjacentInfantry[0]) {
+                                      executeAttackFireMG(
+                                        adjacentInfantry[0],
+                                        selectedTrayDie && canUseMG ? { type: 'single', value: selectedTrayDie } : undefined
+                                      );
+                                      setSelectedTrayDie(null);
+                                    }
+                                  }}
+                                  disabled={isMGDisabled}
+                                  className={`min-h-[48px] p-2.5 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                                    selectedTrayDie !== null && canUseMG
+                                      ? 'bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400'
+                                      : 'bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100'
+                                  }`}
+                                >
+                                  <span>🔫 Disparar MG (7+ Infantería)</span>
+                                  <span className="text-[10px] text-slate-400 font-normal">
+                                    {selectedTrayDie !== null && canUseMG
+                                      ? `🎯 Usará Dado [${selectedTrayDie}]`
+                                      : `Dado 3 o 4 (${countOf(3) + countOf(4)} disp.) ${
+                                          adjacentInfantry.length === 0 ? '(Sin inf. adyacente)' : ''
+                                        }`}
+                                  </span>
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
@@ -700,7 +917,10 @@ export const PhaseConsole: React.FC = () => {
                               Puedes finalizar en cualquier momento si no deseas usar más dados.
                             </span>
                             <button
-                              onClick={advanceSection}
+                              onClick={() => {
+                                setSelectedTrayDie(null);
+                                advanceSection();
+                              }}
                               className="min-h-[44px] px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow transition"
                             >
                               Finalizar {section === 'maneuver' ? 'Maniobra' : section === 'attack' ? 'Ataque' : 'Varios'} y Continuar ➔

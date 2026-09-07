@@ -4,6 +4,7 @@ import {
   getAvailableDoubles,
   validateManeuverMove,
   executeMGAttack,
+  selectBestDieToConsume,
 } from '../shermanOperations';
 import {
   BoardState,
@@ -341,4 +342,34 @@ describe('shermanOperations rules', () => {
       expect(res.detail).toContain('adyacente');
     });
   });
+
+  describe('selectBestDieToConsume', () => {
+    it('prioritizes singletons over pairs to preserve doubles (e.g. 2, 2, 3, 3, 4)', () => {
+      // In maneuver: turn needs 2, 3, or 4.
+      // With roll [2, 2, 3, 3, 4], consuming 4 keeps [2, 2] and [3, 3] pairs intact.
+      const dice = [2, 2, 3, 3, 4];
+      const chosen = selectBestDieToConsume(dice, [2, 3, 4]);
+      expect(chosen).toBe(4);
+    });
+
+    it('prioritizes singletons over pairs for move (5 or 6)', () => {
+      // Roll [5, 5, 6]: single 6 is consumed, keeping [5, 5] pair intact
+      const dice = [5, 5, 6];
+      const chosen = selectBestDieToConsume(dice, [5, 6]);
+      expect(chosen).toBe(6);
+    });
+
+    it('returns highest value among singletons as tie-breaker', () => {
+      const dice = [1, 2, 3, 5, 6];
+      const chosenTurn = selectBestDieToConsume(dice, [2, 3, 4]);
+      expect(chosenTurn).toBe(3);
+    });
+
+    it('returns null if no candidates are available', () => {
+      const dice = [1, 1, 1];
+      const chosen = selectBestDieToConsume(dice, [5, 6]);
+      expect(chosen).toBeNull();
+    });
+  });
 });
+

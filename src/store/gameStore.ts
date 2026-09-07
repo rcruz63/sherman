@@ -48,6 +48,7 @@ import {
   calculateSectionDice,
   validateManeuverMove,
   executeMGAttack,
+  selectBestDieToConsume,
   ShermanSectionType,
   ShermanOperationsOrder,
 } from '../core/rules/shermanOperations';
@@ -113,7 +114,11 @@ export interface GameStoreState {
   executeManeuverTurn: (deltaFacing: -1 | 1, consume?: { type: 'single'; value: number } | { type: 'double'; value: number }) => void;
   executeAttackLoad: (consume?: { type: 'single'; value: number } | { type: 'double'; value: number }) => void;
   executeAttackFireGun: (target: EnemyTank, consume?: { type: 'single'; value: number } | { type: 'double'; value: number }) => void;
-  executeAttackFireMG: (target: EnemyInfantry, dieValue?: number, presetRolls?: [number, number]) => void;
+  executeAttackFireMG: (
+    target: EnemyInfantry,
+    consume?: { type: 'single'; value: number } | { type: 'double'; value: number } | number,
+    presetRolls?: [number, number]
+  ) => void;
   executeMiscAction: (
     actionType: 'dcp' | 'load' | 'mg' | 'turn' | 'move' | 'repair' | 'smoke' | 'extinguish' | 'hull_down',
     consume?: { type: 'single'; value: number } | { type: 'double'; value: number },
@@ -972,32 +977,29 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const ops = boardState.shermanOperations;
     let nextAvailable = ops ? [...ops.availableDice] : [];
 
-    if (ops && ops.currentSection === 'maneuver') {
-      const deduction =
-        consume ||
-        (nextAvailable.includes(5)
-          ? { type: 'single' as const, value: 5 }
-          : nextAvailable.includes(6)
-          ? { type: 'single' as const, value: 6 }
-          : null);
-
-      if (!deduction) {
-        addLogMessage('⚠️ No dispones de dados (5 o 6, o doble de Conductor) para Avanzar.');
-        return;
-      }
-      if (deduction.type === 'double' && boardState.sherman.crew.driver.status !== 'active') {
-        addLogMessage('⚠️ No se puede usar el doble para Mover: El Conductor está KIA.');
-        return;
-      }
-
-      if (deduction.type === 'single') {
-        const idx = nextAvailable.indexOf(deduction.value);
+    if (ops) {
+      if (consume) {
+        if (consume.type === 'double' && boardState.sherman.crew.driver.status !== 'active') {
+          addLogMessage('⚠️ No se puede usar el doble para Mover: El Conductor está KIA.');
+          return;
+        }
+        if (consume.type === 'single') {
+          const idx = nextAvailable.indexOf(consume.value);
+          if (idx !== -1) nextAvailable.splice(idx, 1);
+        } else {
+          const idx1 = nextAvailable.indexOf(consume.value);
+          if (idx1 !== -1) nextAvailable.splice(idx1, 1);
+          const idx2 = nextAvailable.indexOf(consume.value);
+          if (idx2 !== -1) nextAvailable.splice(idx2, 1);
+        }
+      } else if (ops.currentSection === 'maneuver') {
+        const bestVal = selectBestDieToConsume(nextAvailable, [5, 6]);
+        if (!bestVal) {
+          addLogMessage('⚠️ No dispones de dados (5 o 6, o doble de Conductor) para Avanzar.');
+          return;
+        }
+        const idx = nextAvailable.indexOf(bestVal);
         if (idx !== -1) nextAvailable.splice(idx, 1);
-      } else {
-        const idx1 = nextAvailable.indexOf(deduction.value);
-        if (idx1 !== -1) nextAvailable.splice(idx1, 1);
-        const idx2 = nextAvailable.indexOf(deduction.value);
-        if (idx2 !== -1) nextAvailable.splice(idx2, 1);
       }
     }
 
@@ -1057,14 +1059,18 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const ops = boardState.shermanOperations;
     let nextAvailable = ops ? [...ops.availableDice] : [];
 
-    if (ops && ops.currentSection === 'maneuver') {
-      const deduction = consume || (nextAvailable.includes(1) ? { type: 'single' as const, value: 1 } : null);
-      if (!deduction) {
-        addLogMessage('⚠️ No dispones de dado con valor 1 para Retroceder.');
-        return;
+    if (ops) {
+      if (consume) {
+        const idx = nextAvailable.indexOf(consume.value);
+        if (idx !== -1) nextAvailable.splice(idx, 1);
+      } else if (ops.currentSection === 'maneuver') {
+        if (!nextAvailable.includes(1)) {
+          addLogMessage('⚠️ No dispones de dado con valor 1 para Retroceder.');
+          return;
+        }
+        const idx = nextAvailable.indexOf(1);
+        if (idx !== -1) nextAvailable.splice(idx, 1);
       }
-      const idx = nextAvailable.indexOf(deduction.value);
-      if (idx !== -1) nextAvailable.splice(idx, 1);
     }
 
     const valResult = validateManeuverMove(boardState, 'reverse');
@@ -1121,34 +1127,29 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const ops = boardState.shermanOperations;
     let nextAvailable = ops ? [...ops.availableDice] : [];
 
-    if (ops && ops.currentSection === 'maneuver') {
-      const deduction =
-        consume ||
-        (nextAvailable.includes(2)
-          ? { type: 'single' as const, value: 2 }
-          : nextAvailable.includes(3)
-          ? { type: 'single' as const, value: 3 }
-          : nextAvailable.includes(4)
-          ? { type: 'single' as const, value: 4 }
-          : null);
-
-      if (!deduction) {
-        addLogMessage('⚠️ No dispones de dados (2, 3 o 4, o doble de Asistente) para Girar.');
-        return;
-      }
-      if (deduction.type === 'double' && boardState.sherman.crew.assistant.status !== 'active') {
-        addLogMessage('⚠️ No se puede usar el doble para Girar: El Asistente de Conductor está KIA.');
-        return;
-      }
-
-      if (deduction.type === 'single') {
-        const idx = nextAvailable.indexOf(deduction.value);
+    if (ops) {
+      if (consume) {
+        if (consume.type === 'double' && boardState.sherman.crew.assistant.status !== 'active') {
+          addLogMessage('⚠️ No se puede usar el doble para Girar: El Asistente de Conductor está KIA.');
+          return;
+        }
+        if (consume.type === 'single') {
+          const idx = nextAvailable.indexOf(consume.value);
+          if (idx !== -1) nextAvailable.splice(idx, 1);
+        } else {
+          const idx1 = nextAvailable.indexOf(consume.value);
+          if (idx1 !== -1) nextAvailable.splice(idx1, 1);
+          const idx2 = nextAvailable.indexOf(consume.value);
+          if (idx2 !== -1) nextAvailable.splice(idx2, 1);
+        }
+      } else if (ops.currentSection === 'maneuver') {
+        const bestVal = selectBestDieToConsume(nextAvailable, [2, 3, 4]);
+        if (!bestVal) {
+          addLogMessage('⚠️ No dispones de dados (2, 3 o 4, o doble de Asistente) para Girar.');
+          return;
+        }
+        const idx = nextAvailable.indexOf(bestVal);
         if (idx !== -1) nextAvailable.splice(idx, 1);
-      } else {
-        const idx1 = nextAvailable.indexOf(deduction.value);
-        if (idx1 !== -1) nextAvailable.splice(idx1, 1);
-        const idx2 = nextAvailable.indexOf(deduction.value);
-        if (idx2 !== -1) nextAvailable.splice(idx2, 1);
       }
     }
 
@@ -1194,32 +1195,29 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const ops = boardState.shermanOperations;
     let nextAvailable = ops ? [...ops.availableDice] : [];
 
-    if (ops && ops.currentSection === 'attack') {
-      const deduction =
-        consume ||
-        (nextAvailable.includes(1)
-          ? { type: 'single' as const, value: 1 }
-          : nextAvailable.includes(2)
-          ? { type: 'single' as const, value: 2 }
-          : null);
-
-      if (!deduction) {
-        addLogMessage('⚠️ No dispones de dados (1 o 2, o doble de Cargador) para Cargar el cañón.');
-        return;
-      }
-      if (deduction.type === 'double' && boardState.sherman.crew.loader.status !== 'active') {
-        addLogMessage('⚠️ No se puede usar el doble para Cargar: El Cargador está KIA.');
-        return;
-      }
-
-      if (deduction.type === 'single') {
-        const idx = nextAvailable.indexOf(deduction.value);
+    if (ops) {
+      if (consume) {
+        if (consume.type === 'double' && boardState.sherman.crew.loader.status !== 'active') {
+          addLogMessage('⚠️ No se puede usar el doble para Cargar: El Cargador está KIA.');
+          return;
+        }
+        if (consume.type === 'single') {
+          const idx = nextAvailable.indexOf(consume.value);
+          if (idx !== -1) nextAvailable.splice(idx, 1);
+        } else {
+          const idx1 = nextAvailable.indexOf(consume.value);
+          if (idx1 !== -1) nextAvailable.splice(idx1, 1);
+          const idx2 = nextAvailable.indexOf(consume.value);
+          if (idx2 !== -1) nextAvailable.splice(idx2, 1);
+        }
+      } else if (ops.currentSection === 'attack') {
+        const bestVal = selectBestDieToConsume(nextAvailable, [1, 2]);
+        if (!bestVal) {
+          addLogMessage('⚠️ No dispones de dados (1 o 2, o doble de Cargador) para Cargar el cañón.');
+          return;
+        }
+        const idx = nextAvailable.indexOf(bestVal);
         if (idx !== -1) nextAvailable.splice(idx, 1);
-      } else {
-        const idx1 = nextAvailable.indexOf(deduction.value);
-        if (idx1 !== -1) nextAvailable.splice(idx1, 1);
-        const idx2 = nextAvailable.indexOf(deduction.value);
-        if (idx2 !== -1) nextAvailable.splice(idx2, 1);
       }
     }
 
@@ -1264,32 +1262,29 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const ops = boardState.shermanOperations;
     let nextAvailable = ops ? [...ops.availableDice] : [];
 
-    if (ops && ops.currentSection === 'attack') {
-      const deduction =
-        consume ||
-        (nextAvailable.includes(5)
-          ? { type: 'single' as const, value: 5 }
-          : nextAvailable.includes(6)
-          ? { type: 'single' as const, value: 6 }
-          : null);
-
-      if (!deduction) {
-        addLogMessage('⚠️ No dispones de dados (5 o 6, o doble de Artillero) para Disparar el Cañón.');
-        return;
-      }
-      if (deduction.type === 'double' && boardState.sherman.crew.gunner.status !== 'active') {
-        addLogMessage('⚠️ No se puede usar el doble para Disparar: El Artillero está KIA.');
-        return;
-      }
-
-      if (deduction.type === 'single') {
-        const idx = nextAvailable.indexOf(deduction.value);
+    if (ops) {
+      if (consume) {
+        if (consume.type === 'double' && boardState.sherman.crew.gunner.status !== 'active') {
+          addLogMessage('⚠️ No se puede usar el doble para Disparar: El Artillero está KIA.');
+          return;
+        }
+        if (consume.type === 'single') {
+          const idx = nextAvailable.indexOf(consume.value);
+          if (idx !== -1) nextAvailable.splice(idx, 1);
+        } else {
+          const idx1 = nextAvailable.indexOf(consume.value);
+          if (idx1 !== -1) nextAvailable.splice(idx1, 1);
+          const idx2 = nextAvailable.indexOf(consume.value);
+          if (idx2 !== -1) nextAvailable.splice(idx2, 1);
+        }
+      } else if (ops.currentSection === 'attack') {
+        const bestVal = selectBestDieToConsume(nextAvailable, [5, 6]);
+        if (!bestVal) {
+          addLogMessage('⚠️ No dispones de dados (5 o 6, o doble de Artillero) para Disparar el Cañón.');
+          return;
+        }
+        const idx = nextAvailable.indexOf(bestVal);
         if (idx !== -1) nextAvailable.splice(idx, 1);
-      } else {
-        const idx1 = nextAvailable.indexOf(deduction.value);
-        if (idx1 !== -1) nextAvailable.splice(idx1, 1);
-        const idx2 = nextAvailable.indexOf(deduction.value);
-        if (idx2 !== -1) nextAvailable.splice(idx2, 1);
       }
     }
 
@@ -1412,21 +1407,32 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  executeAttackFireMG: (target: EnemyInfantry, dieValue?: number, presetRolls?: [number, number]) => {
+  executeAttackFireMG: (
+    target: EnemyInfantry,
+    consume?: { type: 'single'; value: number } | { type: 'double'; value: number } | number,
+    presetRolls?: [number, number]
+  ) => {
     const { boardState, addLogMessage } = get();
     if (!boardState) return;
 
     const ops = boardState.shermanOperations;
     let nextAvailable = ops ? [...ops.availableDice] : [];
 
-    if (ops && ops.currentSection === 'attack') {
-      const valToConsume = dieValue || (nextAvailable.includes(3) ? 3 : nextAvailable.includes(4) ? 4 : null);
-      if (!valToConsume) {
-        addLogMessage('⚠️ No dispones de dado con valor 3 o 4 para Disparar Ametralladora (MG).');
-        return;
+    const requestedVal = typeof consume === 'number' ? consume : consume?.value;
+
+    if (ops) {
+      if (requestedVal) {
+        const idx = nextAvailable.indexOf(requestedVal);
+        if (idx !== -1) nextAvailable.splice(idx, 1);
+      } else if (ops.currentSection === 'attack') {
+        const valToConsume = selectBestDieToConsume(nextAvailable, [3, 4]);
+        if (!valToConsume) {
+          addLogMessage('⚠️ No dispones de dado con valor 3 o 4 para Disparar Ametralladora (MG).');
+          return;
+        }
+        const idx = nextAvailable.indexOf(valToConsume);
+        if (idx !== -1) nextAvailable.splice(idx, 1);
       }
-      const idx = nextAvailable.indexOf(valToConsume);
-      if (idx !== -1) nextAvailable.splice(idx, 1);
     }
 
     const mgResult = executeMGAttack(boardState.sherman.coord, target, presetRolls);
@@ -1488,10 +1494,54 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const { boardState, addLogMessage } = get();
     if (!boardState) return;
 
+    if (actionType === 'dcp') {
+      if (boardState.sherman.crew.gunner.status !== 'active') {
+        addLogMessage('⚠️ Requiere Artillero vivo para disparar en Varios.');
+        return;
+      }
+      if (!params?.targetTank) {
+        addLogMessage('⚠️ Se requiere un tanque objetivo válido para disparar.');
+        return;
+      }
+      get().executeAttackFireGun(params.targetTank, consume || { type: 'single', value: 1 });
+      return;
+    }
+
+    if (actionType === 'mg') {
+      if (boardState.sherman.crew.assistant.status !== 'active') {
+        addLogMessage('⚠️ Requiere Asistente de Conductor vivo para disparar MG en Varios.');
+        return;
+      }
+      if (!params?.targetInfantry) {
+        addLogMessage('⚠️ Se requiere infantería adyacente para disparar MG.');
+        return;
+      }
+      get().executeAttackFireMG(params.targetInfantry, consume || { type: 'single', value: 2 });
+      return;
+    }
+
+    if (actionType === 'move') {
+      if (boardState.sherman.crew.driver.status !== 'active') {
+        addLogMessage('⚠️ Requiere Conductor vivo para Mover en Varios.');
+        return;
+      }
+      get().executeManeuverForward(consume || { type: 'single', value: 3 });
+      return;
+    }
+
+    if (actionType === 'turn') {
+      if (boardState.sherman.crew.driver.status !== 'active') {
+        addLogMessage('⚠️ Requiere Conductor vivo para Girar en Varios.');
+        return;
+      }
+      get().executeManeuverTurn(params?.turnDelta || 1, consume || { type: 'single', value: 3 });
+      return;
+    }
+
     const ops = boardState.shermanOperations;
     let nextAvailable = ops ? [...ops.availableDice] : [];
 
-    if (ops && ops.currentSection === 'misc') {
+    if (ops) {
       if (consume) {
         if (consume.type === 'single') {
           const idx = nextAvailable.indexOf(consume.value);
@@ -1522,50 +1572,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           : state.boardState,
         combatLog: [...state.combatLog, '⚡ [Varios] Cargador carga el cañón principal.'],
       }));
-      return;
-    }
-
-    if (actionType === 'dcp') {
-      if (boardState.sherman.crew.gunner.status !== 'active') {
-        addLogMessage('⚠️ Requiere Artillero vivo para disparar en Varios.');
-        return;
-      }
-      if (!params?.targetTank) {
-        addLogMessage('⚠️ Se requiere un tanque objetivo válido para disparar.');
-        return;
-      }
-      get().executeAttackFireGun(params.targetTank);
-      return;
-    }
-
-    if (actionType === 'mg') {
-      if (boardState.sherman.crew.assistant.status !== 'active') {
-        addLogMessage('⚠️ Requiere Asistente de Conductor vivo para disparar MG en Varios.');
-        return;
-      }
-      if (!params?.targetInfantry) {
-        addLogMessage('⚠️ Se requiere infantería adyacente para disparar MG.');
-        return;
-      }
-      get().executeAttackFireMG(params.targetInfantry);
-      return;
-    }
-
-    if (actionType === 'move') {
-      if (boardState.sherman.crew.driver.status !== 'active') {
-        addLogMessage('⚠️ Requiere Conductor vivo para Mover en Varios.');
-        return;
-      }
-      get().executeManeuverForward();
-      return;
-    }
-
-    if (actionType === 'turn') {
-      if (boardState.sherman.crew.driver.status !== 'active') {
-        addLogMessage('⚠️ Requiere Conductor vivo para Girar en Varios.');
-        return;
-      }
-      get().executeManeuverTurn(params?.turnDelta || 1);
       return;
     }
 

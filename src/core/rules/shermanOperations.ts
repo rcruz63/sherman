@@ -216,6 +216,34 @@ export function validateManeuverMove(
   return { isValid: true, targetCoord };
 }
 
+/**
+ * Picks the best die value to consume among allowed candidates,
+ * prioritizing singletons and preserving pairs/doubles whenever possible.
+ */
+export function selectBestDieToConsume(availableDice: number[], candidates: number[]): number | null {
+  const availableCandidates = candidates.filter((c) => availableDice.includes(c));
+  if (availableCandidates.length === 0) return null;
+
+  const countOf = (val: number) => availableDice.filter((d) => d === val).length;
+
+  const getPreservationScore = (val: number) => {
+    const count = countOf(val);
+    if (count === 1) return 0; // Singleton: highest priority, destroys no pair
+    if (count === 3) return 1; // Triple: leaves a pair
+    if (count >= 4) return 2; // Quadruple+
+    if (count === 2) return 3; // Pair: lowest priority, destroys a pair
+    return 4;
+  };
+
+  availableCandidates.sort((a, b) => {
+    const scoreDiff = getPreservationScore(a) - getPreservationScore(b);
+    if (scoreDiff !== 0) return scoreDiff;
+    return b - a; // Tie-breaker: prefer higher face value (e.g. 4 over 3)
+  });
+
+  return availableCandidates[0];
+}
+
 export interface AvailableDoubleOption {
   value: number;
   label: string;
