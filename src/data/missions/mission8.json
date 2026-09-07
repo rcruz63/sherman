@@ -1,17 +1,50 @@
 {
   "id": 8,
-  "title": "Misión 8 - Asesinato",
-  "briefing": "Un oficial alemán de alto rango se encuentra en el edificio señalado. Destruye a la escuadra que lo escolta con tus ametralladoras y evacúa el sector por la flecha roja.",
-  "map": {
-    "orientation": "pointy-topped",
-    "columns": 5,
-    "rows": 9,
-    "defaultTerrain": "FIELD"
+  "title": "Misión 8 - Asesinato: Elimina al Oficial",
+  "briefing": "Un oficial alemán de alto rango se encuentra apostado en el edificio de (0,0). Elimina al oficial, destruye los dos carros Panzer IV que custodian el sector y evacúa por la flecha roja en (5,0).",
+  "grid": {
+    "orientation": "flat-topped",
+    "columns": [
+      {
+        "col": 0,
+        "rows": 5
+      },
+      {
+        "col": 1,
+        "rows": 6
+      },
+      {
+        "col": 2,
+        "rows": 7
+      },
+      {
+        "col": 3,
+        "rows": 7
+      },
+      {
+        "col": 4,
+        "rows": 6
+      },
+      {
+        "col": 5,
+        "rows": 5
+      }
+    ]
   },
   "victoryConditions": {
+    "destroyAllEnemiesOfType": [
+      "PANZER_IV"
+    ],
     "destroySpecificUnit": "OFFICER_INFANTRY",
     "requireMapExit": true,
-    "exitHex": { "q": 1, "r": 0 }
+    "exitHex": {
+      "q": 5,
+      "r": 0,
+      "col": 5,
+      "row": 0,
+      "facing": 1
+    },
+    "exitFacing": 1
   },
   "defeatConditions": {
     "shermanDestroyed": true,
@@ -19,7 +52,10 @@
   },
   "playerDeployment": {
     "unit": "SHERMAN",
-    "hex": { "q": 1, "r": 8 },
+    "hex": {
+      "col": 3,
+      "row": 6
+    },
     "facing": 0,
     "initialStatus": {
       "loaded": false,
@@ -30,81 +66,454 @@
       "hullDown": false
     },
     "crew": [
-      { "id": 1, "name": "Comandante", "position": "INTERIOR", "kia": false },
-      { "id": 2, "name": "Cargador", "kia": false },
-      { "id": 3, "name": "Artillero", "kia": false },
-      { "id": 4, "name": "Conductor", "kia": false },
-      { "id": 5, "name": "Asistente Conductor", "kia": false }
+      {
+        "id": 1,
+        "name": "Comandante",
+        "position": "INTERIOR",
+        "kia": false
+      },
+      {
+        "id": 2,
+        "name": "Cargador",
+        "kia": false
+      },
+      {
+        "id": 3,
+        "name": "Artillero",
+        "kia": false
+      },
+      {
+        "id": 4,
+        "name": "Conductor",
+        "kia": false
+      },
+      {
+        "id": 5,
+        "name": "Asistente Conductor",
+        "kia": false
+      }
     ]
   },
   "enemyDeployment": {
     "tanks": [
-      { "type": "TIGER", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 },
-      { "type": "PANZER_IV", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 },
-      { "type": "PANZER_III", "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS", "count": 1 }
+      {
+        "type": "PANZER_IV",
+        "spawnMethod": "RANDOM_UNIQUE_BLACK_NUMBERS",
+        "count": 2
+      }
     ],
     "infantry": [
       {
         "id": "OFFICER_INFANTRY",
         "spawnMethod": "FIXED_HEX",
-        "hex": { "q": 1, "r": 3 },
+        "hex": {
+          "col": 0,
+          "row": 0
+        },
         "isObjective": true
       }
     ]
   },
-  "spawnPoints": {
-    "blackNumbers": [
-      { "number": 1, "hex": { "q": 1, "r": 1 }, "facing": 3 },
-      { "number": 2, "hex": { "q": 0, "r": 2 }, "facing": 2 },
-      { "number": 3, "hex": { "q": 2, "r": 2 }, "facing": 4 },
-      { "number": 4, "hex": { "q": 0, "r": 5 }, "facing": 1 },
-      { "number": 5, "hex": { "q": 2, "r": 5 }, "facing": 5 },
-      { "number": 6, "hex": { "q": 1, "r": 5 }, "facing": 3 }
-    ],
-    "redNumbers": [
-      { "number": 1, "hex": { "q": 0, "r": 3 } },
-      { "number": 2, "hex": { "q": 2, "r": 3 } },
-      { "number": 3, "hex": { "q": 1, "r": 4 } },
-      { "number": 4, "hex": { "q": 0, "r": 6 } },
-      { "number": 5, "hex": { "q": 2, "r": 6 } },
-      { "number": 6, "hex": { "q": 1, "r": 6 } }
-    ]
-  },
+  "hexes": [
+    {
+      "col": 0,
+      "row": 0,
+      "terrain": "MUD",
+      "hasBuilding": true,
+      "buildingType": "TOWN",
+      "isBridge": false,
+      "isExit": false
+    },
+    {
+      "col": 0,
+      "row": 1,
+      "terrain": "FIELD",
+      "isExit": false,
+      "blackSpot": {
+        "number": 6,
+        "facing": 2
+      }
+    },
+    {
+      "col": 0,
+      "row": 2,
+      "terrain": "FIELD",
+      "treeLines": [
+        "SE"
+      ],
+      "isExit": false,
+      "roadEdges": [
+        "NE",
+        "SW"
+      ]
+    },
+    {
+      "col": 0,
+      "row": 3,
+      "terrain": "WOODS",
+      "hasBuilding": false,
+      "isBridge": false,
+      "isExit": false,
+      "redSpot": 3
+    },
+    {
+      "col": 0,
+      "row": 4,
+      "terrain": "MUD",
+      "isBridge": false,
+      "isExit": false,
+      "blackSpot": {
+        "number": 5,
+        "facing": 1
+      }
+    },
+    {
+      "col": 1,
+      "row": 0,
+      "terrain": "WOODS",
+      "hasBuilding": false,
+      "isBridge": false,
+      "isExit": false,
+      "redSpot": 5
+    },
+    {
+      "col": 1,
+      "row": 1,
+      "terrain": "FIELD",
+      "isExit": false
+    },
+    {
+      "col": 1,
+      "row": 2,
+      "terrain": "FIELD",
+      "isExit": false,
+      "roadEdges": [
+        "SW",
+        "NE"
+      ]
+    },
+    {
+      "col": 1,
+      "row": 3,
+      "terrain": "FIELD",
+      "isExit": false
+    },
+    {
+      "col": 1,
+      "row": 4,
+      "terrain": "MUD",
+      "isBridge": false,
+      "isExit": false
+    },
+    {
+      "col": 1,
+      "row": 5,
+      "terrain": "MUD",
+      "isBridge": false,
+      "isExit": false
+    },
+    {
+      "col": 2,
+      "row": 0,
+      "terrain": "FIELD",
+      "isExit": false,
+      "roadEdges": [
+        "N",
+        "S"
+      ],
+      "blackSpot": {
+        "number": 1,
+        "facing": 3
+      }
+    },
+    {
+      "col": 2,
+      "row": 1,
+      "terrain": "FIELD",
+      "isExit": false,
+      "roadEdges": [
+        "N",
+        "S"
+      ]
+    },
+    {
+      "col": 2,
+      "row": 2,
+      "terrain": "FIELD",
+      "hasBuilding": true,
+      "buildingType": "TOWN",
+      "isBridge": false,
+      "isExit": false,
+      "roadEdges": [
+        "N",
+        "SW",
+        "SE"
+      ],
+      "redSpot": 2
+    },
+    {
+      "col": 2,
+      "row": 3,
+      "terrain": "WATER",
+      "hasBuilding": false,
+      "isExit": false
+    },
+    {
+      "col": 2,
+      "row": 4,
+      "terrain": "FIELD",
+      "isExit": false
+    },
+    {
+      "col": 2,
+      "row": 5,
+      "terrain": "MUD",
+      "hasBuilding": true,
+      "buildingType": "TOWN",
+      "isBridge": false,
+      "treeLines": [
+        "SE"
+      ],
+      "isExit": false,
+      "redSpot": 4
+    },
+    {
+      "col": 2,
+      "row": 6,
+      "terrain": "FIELD",
+      "isExit": false,
+      "roadEdges": [
+        "NE",
+        "SW"
+      ]
+    },
+    {
+      "col": 3,
+      "row": 0,
+      "terrain": "FIELD",
+      "isExit": false,
+      "blackSpot": {
+        "number": 2,
+        "facing": 3
+      }
+    },
+    {
+      "col": 3,
+      "row": 1,
+      "terrain": "MUD",
+      "isBridge": false,
+      "isExit": false
+    },
+    {
+      "col": 3,
+      "row": 2,
+      "terrain": "FIELD",
+      "treeLines": [
+        "NE"
+      ],
+      "isExit": false,
+      "roadEdges": [
+        "SE",
+        "NW"
+      ]
+    },
+    {
+      "col": 3,
+      "row": 3,
+      "terrain": "MUD",
+      "isBridge": false,
+      "treeLines": [
+        "NE"
+      ],
+      "isExit": false
+    },
+    {
+      "col": 3,
+      "row": 4,
+      "terrain": "MUD",
+      "isBridge": false,
+      "treeLines": [
+        "S",
+        "SE"
+      ],
+      "isExit": false
+    },
+    {
+      "col": 3,
+      "row": 5,
+      "terrain": "FIELD",
+      "isExit": false,
+      "roadEdges": [
+        "SW",
+        "NE"
+      ]
+    },
+    {
+      "col": 3,
+      "row": 6,
+      "terrain": "FIELD",
+      "isEntry": true,
+      "entryFacing": 0,
+      "isExit": false
+    },
+    {
+      "col": 4,
+      "row": 0,
+      "terrain": "WOODS",
+      "hasBuilding": false,
+      "isBridge": false,
+      "isExit": false,
+      "redSpot": 6
+    },
+    {
+      "col": 4,
+      "row": 1,
+      "terrain": "FIELD",
+      "isExit": false
+    },
+    {
+      "col": 4,
+      "row": 2,
+      "terrain": "FIELD",
+      "isExit": false,
+      "roadEdges": [
+        "S",
+        "NW"
+      ]
+    },
+    {
+      "col": 4,
+      "row": 3,
+      "terrain": "FIELD",
+      "hasBuilding": true,
+      "buildingType": "TOWN",
+      "isBridge": false,
+      "isExit": false,
+      "roadEdges": [
+        "N",
+        "S"
+      ],
+      "redSpot": 1
+    },
+    {
+      "col": 4,
+      "row": 4,
+      "terrain": "FIELD",
+      "isExit": false,
+      "roadEdges": [
+        "N",
+        "SW"
+      ]
+    },
+    {
+      "col": 4,
+      "row": 5,
+      "terrain": "FIELD",
+      "isExit": false
+    },
+    {
+      "col": 5,
+      "row": 0,
+      "terrain": "FIELD",
+      "isExit": true,
+      "exitFacing": 1,
+      "isEntry": false,
+      "blackSpot": {
+        "number": 3,
+        "facing": 3
+      }
+    },
+    {
+      "col": 5,
+      "row": 1,
+      "terrain": "FIELD",
+      "isExit": false
+    },
+    {
+      "col": 5,
+      "row": 2,
+      "terrain": "FIELD",
+      "isExit": false,
+      "blackSpot": {
+        "number": 4,
+        "facing": 4
+      }
+    },
+    {
+      "col": 5,
+      "row": 3,
+      "terrain": "FIELD",
+      "treeLines": [
+        "S"
+      ],
+      "isExit": false
+    },
+    {
+      "col": 5,
+      "row": 4,
+      "terrain": "FIELD",
+      "isExit": false
+    }
+  ],
   "shermanDicePool": {
-    "maneuver": { "road": 2, "field": 1, "mud": 0 },
-    "attack": { "road": 2, "field": 2, "mud": 1 },
-    "misc": { "road": 1, "field": 2, "mud": 1 }
+    "maneuver": {
+      "road": 2,
+      "field": 1,
+      "mud": 0
+    },
+    "attack": {
+      "road": 2,
+      "field": 2,
+      "mud": 1
+    },
+    "misc": {
+      "road": 1,
+      "field": 2,
+      "mud": 1
+    }
   },
   "endOfTurnEvents": [
     {
       "rollMin": 2,
+      "rollMax": 3,
+      "type": "SNIPER",
+      "description": "Si Cte = A y en LOS de infantería, queda KIA."
+    },
+    {
+      "rollMin": 4,
       "rollMax": 4,
-      "type": "MINES",
-      "description": "¡Minas! Si el Sherman está en Carretera y no Inmovilizado, impacto automático (Pen 0 vs BL 4)."
+      "type": "COMMANDER_ORDER",
+      "description": "Si Cte no está KIA: Cargar, Reparar o Extinguir."
     },
     {
       "rollMin": 5,
       "rollMax": 6,
       "type": "SPAWN_INFANTRY",
-      "description": "Lanza 1d6: Colocar infantería en hexágono rojo correspondiente sin unidades. No se repite la tirada."
+      "description": "Lanza d6: Colocar en hex rojo correspondiente."
     },
     {
       "rollMin": 7,
-      "rollMax": 9,
+      "rollMax": 8,
       "type": "INFANTRY_ATTACK",
-      "description": "Toda infantería alemana adyacente ataca: Impacto 2d6 a Distancia 1; ¿Daños? con Pen 1 vs BL del Sherman."
+      "description": "Infantería adyacente ataca a dist 1, Pen 1."
+    },
+    {
+      "rollMin": 9,
+      "rollMax": 9,
+      "type": "MECHANICAL_FAILURE",
+      "description": "El Sherman queda Inmovilizado."
     },
     {
       "rollMin": 10,
       "rollMax": 10,
-      "type": "COMMANDER_ORDER",
-      "description": "Si el Comandante no está KIA, realiza 1 acción entre CARGAR, REPARAR o EXTINGUIR."
+      "type": "STUKA",
+      "description": "Ataque aéreo Stuka."
     },
     {
       "rollMin": 11,
       "rollMax": 12,
-      "type": "STUKA",
-      "description": "Si Comandante = A, tirada 2d6 con 6+ derriba Stuka. Si no, impacto con 8+ (Pen 1 vs BL 4)."
+      "type": "SPAWN_PANZER_III",
+      "description": "Lanza d6: Colocar Panzer III en hex negro."
     }
   ]
 }

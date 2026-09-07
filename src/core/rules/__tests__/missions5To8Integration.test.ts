@@ -151,25 +151,42 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
     });
   });
 
-  describe('Mission 8 - Asesinato (Oficial Objetivo)', () => {
-    it('achieves VICTORY when officer infantry is eliminated and Sherman reaches exit hex', () => {
+  describe('Mission 8 - Asesinato (Oficial Objetivo en 0,0)', () => {
+    it('initializes 36 hexes, deploys officer at (0,0), 2 Panzer IVs, and checks victory on target kill + Panzer IVs destroyed + exit (5,0)', () => {
       const boardState = loadMissionState(mission8);
 
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+      expect(boardState.sherman.facing).toBe(0);
+
+      // Check officer infantry at (0,0)
       const officer = boardState.enemyInfantry.find((inf) => inf.id === 'OFFICER_INFANTRY' || inf.isObjective);
       expect(officer).toBeDefined();
-      expect(officer?.coord).toEqual({ q: 1, r: 3 });
+      expect(officer?.coord).toEqual({ q: 0, r: 0 });
 
-      // Eliminate officer infantry
+      // Check 2 Panzer IVs
+      expect(boardState.enemyTanks).toHaveLength(2);
+      expect(boardState.enemyTanks.every((t) => t.type === 'panzerIV')).toBe(true);
+
+      // Check exit tile at (5,0)
+      const exitTile = boardState.tiles.get('5,0');
+      expect(exitTile?.isExitHex).toBe(true);
+      expect(exitTile?.exitFacing).toBe(1);
+
+      // Incomplete victory: only officer eliminated
       officer!.status = 'eliminated';
+      let gameEnd = checkGameEndConditions(boardState);
+      expect(gameEnd.isGameOver).toBe(false);
 
-      // Move Sherman to exit hex (1,0)
-      boardState.sherman.coord = { q: 1, r: 0 };
+      // Destroy Panzer IVs
+      boardState.enemyTanks.forEach((t) => (t.status = 'destroyed'));
 
-      const gameEnd = checkGameEndConditions(boardState);
+      // Move Sherman to exit hex (5,0)
+      boardState.sherman.coord = { q: 5, r: 0 };
 
+      gameEnd = checkGameEndConditions(boardState);
       expect(gameEnd.isGameOver).toBe(true);
       expect(gameEnd.isVictory).toBe(true);
-      expect(gameEnd.message).toContain('VICTORIA TÁCTICA');
     });
 
     it('verifies Mission 8 dice pool and event resolution table', () => {
@@ -179,11 +196,14 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
 
       const events = mission8.endOfTurnEvents;
-      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('MINES');
+      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('SNIPER');
+      expect(events.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
       expect(events.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
-      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
-      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
-      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
+      expect(events.find((e) => 7 >= e.rollMin && 7 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 9 >= e.rollMin && 9 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('STUKA');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
     });
   });
 });
+
