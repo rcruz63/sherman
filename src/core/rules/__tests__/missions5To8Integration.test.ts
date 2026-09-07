@@ -64,12 +64,27 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
   });
 
   describe('Mission 6 - Averiado y Rodeado', () => {
-    it('starts with Sherman immobilized: true on initial deployment', () => {
+    it('starts with Sherman immobilized: true on initial deployment at (3,3) on mud with 3 Panzer IIIs', () => {
       const boardState = loadMissionState(mission6);
 
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 3 });
       expect(boardState.sherman.isImmobilized).toBe(true);
+      expect(boardState.tiles.get('3,3')?.terrain).toBe('mud');
+
       expect(boardState.enemyTanks).toHaveLength(3);
       expect(boardState.enemyTanks.every((t) => t.type === 'panzerIII')).toBe(true);
+
+      const exitTile = boardState.tiles.get('2,0');
+      expect(exitTile?.isExitHex).toBe(true);
+      expect(exitTile?.exitFacing).toBe(0);
+
+      // Verify victory when all 3 Panzer IIIs are destroyed and Sherman reaches (2,0)
+      boardState.enemyTanks.forEach((t) => (t.status = 'destroyed'));
+      boardState.sherman.coord = { q: 2, r: 0 };
+      const gameEnd = checkGameEndConditions(boardState);
+      expect(gameEnd.isGameOver).toBe(true);
+      expect(gameEnd.isVictory).toBe(true);
     });
 
     it('verifies Mission 6 dice pool and event resolution table', () => {
@@ -90,16 +105,35 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
   });
 
   describe('Mission 7 - Pasaba por Aquí: El Puente', () => {
-    it('configures bridge hex (1,4) and restricts allowed entry/exit directions', () => {
+    it('configures bridge hex (3,3) over water and restricts allowed entry/exit directions [1, 4]', () => {
       const boardState = loadMissionState(mission7);
 
-      const bridgeTile = boardState.tiles.get('1,4');
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+
+      const bridgeTile = boardState.tiles.get('3,3');
       expect(bridgeTile).toBeDefined();
       expect(bridgeTile?.isBridge).toBe(true);
+      expect(bridgeTile?.terrain).toBe('water');
 
       const bridgeRule = boardState.missionData?.specialRules?.bridge;
       expect(bridgeRule).toBeDefined();
-      expect(bridgeRule?.allowedEntryDirections).toEqual([0, 3]);
+      expect(bridgeRule?.allowedEntryDirections).toEqual([1, 4]);
+      expect(bridgeRule?.allowedExitDirections).toEqual([1, 4]);
+
+      expect(boardState.enemyTanks).toHaveLength(2);
+      expect(boardState.enemyTanks.some((t) => t.type === 'tiger')).toBe(true);
+      expect(boardState.enemyTanks.some((t) => t.type === 'panzerIII')).toBe(true);
+
+      const exitTile = boardState.tiles.get('2,0');
+      expect(exitTile?.isExitHex).toBe(true);
+      expect(exitTile?.exitFacing).toBe(0);
+
+      // Verify victory condition on map exit at (2,0)
+      boardState.sherman.coord = { q: 2, r: 0 };
+      const gameEnd = checkGameEndConditions(boardState);
+      expect(gameEnd.isGameOver).toBe(true);
+      expect(gameEnd.isVictory).toBe(true);
     });
 
     it('verifies Mission 7 dice pool and event resolution table', () => {
