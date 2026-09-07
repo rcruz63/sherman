@@ -63,19 +63,32 @@ describe('Missions 9 & 10 Victory Conditions Verification', () => {
   });
 
   describe('Mission 10 - Pasaba por Aquí: El Pueblo', () => {
-    it('achieves VICTORY exclusively by reaching exit hex, escaping Tiger + 2 Panzer IV tanks', () => {
+    it('initializes 36 hexes, deploys 1 Tiger, 2 Panzer IVs, 3 random infantry, and achieves VICTORY exclusively by reaching exit hex (2,0)', () => {
       const boardState = loadMissionState(mission10);
+
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+      expect(boardState.sherman.facing).toBe(0);
 
       // Verify 1 Tiger + 2 Panzer IV tanks are deployed
       expect(boardState.enemyTanks).toHaveLength(3);
       expect(boardState.enemyTanks.filter((t) => t.type === 'tiger')).toHaveLength(1);
       expect(boardState.enemyTanks.filter((t) => t.type === 'panzerIV')).toHaveLength(2);
 
+      // Verify 3 infantry squads deployed
+      expect(boardState.enemyInfantry).toHaveLength(3);
+      expect(boardState.enemyInfantry.every((inf) => inf.status === 'active')).toBe(true);
+
+      // Check exit tile at (2,0)
+      const exitTile = boardState.tiles.get('2,0');
+      expect(exitTile?.isExitHex).toBe(true);
+      expect(exitTile?.exitFacing).toBe(0);
+
       // All enemy tanks remain 100% operational
       boardState.enemyTanks.forEach((t) => expect(t.status).toBe('operational'));
 
-      // Move Sherman to exit hex (1,0)
-      boardState.sherman.coord = { q: 1, r: 0 };
+      // Move Sherman to exit hex (2,0)
+      boardState.sherman.coord = { q: 2, r: 0 };
 
       const gameEnd = checkGameEndConditions(boardState);
 
@@ -83,5 +96,21 @@ describe('Missions 9 & 10 Victory Conditions Verification', () => {
       expect(gameEnd.isVictory).toBe(true);
       expect(gameEnd.message).toContain('VICTORIA TÁCTICA');
     });
+
+    it('verifies Mission 10 dice pool and event resolution table', () => {
+      const dice = mission10.shermanDicePool;
+      expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
+
+      const events = mission10.endOfTurnEvents;
+      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
+      expect(events.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('MINES');
+      expect(events.find((e) => 7 >= e.rollMin && 7 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 9 >= e.rollMin && 9 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('STUKA');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_IV');
+    });
   });
 });
+
