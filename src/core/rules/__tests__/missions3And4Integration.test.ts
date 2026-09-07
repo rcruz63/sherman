@@ -69,7 +69,26 @@ describe('Missions 3 & 4 Victory Conditions Verification', () => {
   });
 
   describe('Mission 4 - Pasaba por Aquí: El Lago', () => {
-    it('achieves VICTORY exclusively by reaching exit hex, even with Tiger I and Panzer IV fully intact', () => {
+    it('initializes 36-hex grid, 1 Tiger, 1 Panzer IV, 2 infantry squads, and Sherman at (3,6)', () => {
+      const boardState = loadMissionState(mission4);
+
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+      expect(boardState.sherman.facing).toBe(0);
+
+      // Verify Tiger I and Panzer IV deployed on black spots
+      expect(boardState.enemyTanks).toHaveLength(2);
+      expect(boardState.enemyTanks.some((t) => t.type === 'tiger')).toBe(true);
+      expect(boardState.enemyTanks.some((t) => t.type === 'panzerIV')).toBe(true);
+
+      // Verify 2 infantry squads spawned on red spots
+      expect(boardState.enemyInfantry).toHaveLength(2);
+      boardState.enemyInfantry.forEach((inf) => {
+        expect(inf.status).toBe('active');
+      });
+    });
+
+    it('achieves VICTORY exclusively by reaching exit hex (2,0), even with Tiger I and Panzer IV fully intact', () => {
       const boardState = loadMissionState(mission4);
 
       // Verify Tiger I and Panzer IV are intact
@@ -80,8 +99,8 @@ describe('Missions 3 & 4 Victory Conditions Verification', () => {
       // Both tanks are fully operational
       boardState.enemyTanks.forEach((t) => expect(t.status).toBe('operational'));
 
-      // Move Sherman to exit hex (1,0)
-      boardState.sherman.coord = { q: 1, r: 0 };
+      // Move Sherman to exit hex (2,0)
+      boardState.sherman.coord = { q: 2, r: 0 };
 
       const gameEnd = checkGameEndConditions(boardState);
 
@@ -94,15 +113,16 @@ describe('Missions 3 & 4 Victory Conditions Verification', () => {
       const dice = mission4.shermanDicePool;
       expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
       expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
-      expect(dice.misc).toEqual({ road: 1, field: 1, mud: 2 });
+      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
 
       const events = mission4.endOfTurnEvents;
       expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('SNIPER');
-      expect(events.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
+      expect(events.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
       expect(events.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
       expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
-      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
-      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
+      expect(events.find((e) => 9 >= e.rollMin && 9 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('STUKA');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
     });
   });
 });
