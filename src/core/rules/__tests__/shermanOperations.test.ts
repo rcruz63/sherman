@@ -190,13 +190,14 @@ describe('shermanOperations rules', () => {
   });
 
   describe('getAvailableDoubles', () => {
-    it('returns Conductor (Mover) and Asistente (Girar) for Maneuver when crew is active', () => {
+    it('returns Conductor (Mover) and Asistente (Girar Izq / Der) for Maneuver when crew is active', () => {
       const sherman = createMockShermanState();
       const dice = [2, 2, 5];
       const doubles = getAvailableDoubles('maneuver', dice, sherman);
-      expect(doubles.length).toBe(2);
+      expect(doubles.length).toBe(3);
       expect(doubles.some((d) => d.actionKey === 'double_move' && d.allowed)).toBe(true);
-      expect(doubles.some((d) => d.actionKey === 'double_turn' && d.allowed)).toBe(true);
+      expect(doubles.some((d) => d.actionKey === 'double_turn_left' && d.allowed)).toBe(true);
+      expect(doubles.some((d) => d.actionKey === 'double_turn_right' && d.allowed)).toBe(true);
     });
 
     it('does not offer doubles if no pairs exist in available dice', () => {

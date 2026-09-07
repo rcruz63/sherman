@@ -10,6 +10,7 @@ import {
   SaveSlotMetadata,
   SaveSlotData,
 } from '../../types/game';
+import { missions } from '../../data/missions';
 
 const SLOTS_INDEX_KEY = 'sherman_save_slots_index_v2';
 const ACTIVE_SLOT_KEY = 'sherman_active_slot_id_v2';
@@ -229,6 +230,34 @@ export function loadGameFromSlot(slotId: string): {
     const parsed: SaveSlotData = JSON.parse(raw);
     const tileMap = new Map<string, BoardHex>(parsed.boardState.tiles);
 
+    // Sanitize and upgrade tile terrain against official mission specification
+    if (parsed.boardState.missionData?.id) {
+      const missionDef = missions.find((m) => m.id === parsed.boardState.missionData?.id);
+      if (missionDef?.hexes) {
+        missionDef.hexes.forEach((h) => {
+          const q = h.col ?? (h as any).q;
+          const r = h.row ?? (h as any).r;
+          const tile = tileMap.get(`${q},${r}`);
+          if (tile) {
+            const raw = (h.terrain || '').toLowerCase();
+            if (raw === 'road') tile.terrain = 'road';
+            else if (raw === 'mud') tile.terrain = 'mud';
+            else if (raw === 'woods') tile.terrain = 'woods';
+            else if (raw === 'water') tile.terrain = 'water';
+            else if (raw === 'building') tile.terrain = 'building';
+          }
+        });
+      }
+    }
+
+    const shermanTile = tileMap.get(`${parsed.boardState.sherman.coord.q},${parsed.boardState.sherman.coord.r}`);
+    const shermanOperations = parsed.boardState.shermanOperations
+      ? {
+          ...parsed.boardState.shermanOperations,
+          phaseStartTerrain: shermanTile?.terrain || parsed.boardState.shermanOperations.phaseStartTerrain || 'field',
+        }
+      : undefined;
+
     const boardState: BoardState = {
       tiles: tileMap,
       sherman: parsed.boardState.sherman,
@@ -238,7 +267,7 @@ export function loadGameFromSlot(slotId: string): {
       currentTurn: parsed.boardState.currentTurn,
       currentPhase: parsed.boardState.currentPhase,
       missionData: parsed.boardState.missionData,
-      shermanOperations: parsed.boardState.shermanOperations,
+      shermanOperations,
     };
 
     setActiveSlotId(slotId);

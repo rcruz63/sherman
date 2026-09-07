@@ -368,7 +368,9 @@ export const PhaseConsole: React.FC = () => {
                                     onClick={() => {
                                       if (dOpt.actionKey === 'double_move') {
                                         executeManeuverForward({ type: 'double', value: dOpt.value });
-                                      } else if (dOpt.actionKey === 'double_turn') {
+                                      } else if (dOpt.actionKey === 'double_turn_left') {
+                                        executeManeuverTurn(-1, { type: 'double', value: dOpt.value });
+                                      } else if (dOpt.actionKey === 'double_turn_right' || dOpt.actionKey === 'double_turn') {
                                         executeManeuverTurn(1, { type: 'double', value: dOpt.value });
                                       } else if (dOpt.actionKey === 'double_load') {
                                         executeAttackLoad({ type: 'double', value: dOpt.value });
@@ -621,11 +623,20 @@ export const PhaseConsole: React.FC = () => {
                             </button>
 
                             <button
+                              onClick={() => executeMiscAction('turn', { type: 'single', value: 3 }, { turnDelta: -1 })}
+                              disabled={!availableDice.includes(3) || sherman.crew.driver.status !== 'active'}
+                              className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span>↺ Girar Izq (Conductor)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">Dado 3 ({countOf(3)} disp.)</span>
+                            </button>
+
+                            <button
                               onClick={() => executeMiscAction('turn', { type: 'single', value: 3 }, { turnDelta: 1 })}
                               disabled={!availableDice.includes(3) || sherman.crew.driver.status !== 'active'}
                               className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
                             >
-                              <span>🔄 Girar (Conductor)</span>
+                              <span>↻ Girar Der (Conductor)</span>
                               <span className="text-[10px] text-amber-400 font-normal">Dado 3 ({countOf(3)} disp.)</span>
                             </button>
 

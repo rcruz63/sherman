@@ -249,16 +249,28 @@ export function getAvailableDoubles(
 
         doubles.push({
           value: val,
-          label: `Doble [${val}, ${val}]: MOVER (Conductor)`,
+          label: `⚡ Doble [${val}, ${val}]: 🚗 Avanzar (Conductor)`,
           actionKey: 'double_move',
-          allowed: driverActive,
-          requirementText: driverActive ? 'Conductor activo' : 'Requiere Conductor vivo',
+          allowed: driverActive && !sherman.isImmobilized,
+          requirementText: !driverActive
+            ? 'Requiere Conductor vivo'
+            : sherman.isImmobilized
+            ? 'Inmovilizado'
+            : 'Conductor listo',
         });
 
         doubles.push({
           value: val,
-          label: `Doble [${val}, ${val}]: GIRAR (Asistente)`,
-          actionKey: 'double_turn',
+          label: `⚡ Doble [${val}, ${val}]: ↺ Girar Izq (-60°) (Asistente)`,
+          actionKey: 'double_turn_left',
+          allowed: assistantActive,
+          requirementText: assistantActive ? 'Asistente activo' : 'Requiere Asistente Conductor vivo',
+        });
+
+        doubles.push({
+          value: val,
+          label: `⚡ Doble [${val}, ${val}]: ↻ Girar Der (+60°) (Asistente)`,
+          actionKey: 'double_turn_right',
           allowed: assistantActive,
           requirementText: assistantActive ? 'Asistente activo' : 'Requiere Asistente Conductor vivo',
         });
