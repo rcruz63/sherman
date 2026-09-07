@@ -148,7 +148,29 @@ export const App: React.FC = () => {
         <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs shrink-0">
           <div className="flex items-center gap-1 text-emerald-400 font-semibold border-r border-slate-800 pr-2.5">
             <span>🏆 Victoria:</span>
-            <span className="text-slate-200 font-normal">Destruir 2 Pz IV + Salida (2,0)</span>
+            <span className="text-slate-200 font-normal">
+              {(() => {
+                const vc = currentMission.victoryConditions;
+                const parts: string[] = [];
+                if (vc.destroyAllInfantry) {
+                  parts.push('Eliminar Infantería');
+                }
+                if (vc.destroyAllEnemiesOfType && vc.destroyAllEnemiesOfType.length > 0) {
+                  parts.push(`Destruir ${vc.destroyAllEnemiesOfType.join(', ')}`);
+                }
+                if (vc.requireMapExit) {
+                  const exitHex = vc.exitHex;
+                  const q = exitHex ? (exitHex as any).col ?? (exitHex as any).q : null;
+                  const r = exitHex ? (exitHex as any).row ?? (exitHex as any).r : null;
+                  if (q !== null && r !== null) {
+                    parts.push(`Salida (${q},${r})`);
+                  } else {
+                    parts.push('Salida');
+                  }
+                }
+                return parts.join(' + ') || 'Objetivos cumplidos';
+              })()}
+            </span>
           </div>
           <div className="flex items-center gap-1 text-red-400 font-semibold pl-1">
             <span>💀 Derrota:</span>

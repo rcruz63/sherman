@@ -11,6 +11,7 @@ import {
   SaveSlotData,
 } from '../../types/game';
 import { missions } from '../../data/missions';
+import { loadMissionState } from '../rules/missionLoader';
 
 const SLOTS_INDEX_KEY = 'sherman_save_slots_index_v2';
 const ACTIVE_SLOT_KEY = 'sherman_active_slot_id_v2';
@@ -228,25 +229,47 @@ export function loadGameFromSlot(slotId: string): {
     if (!raw) return null;
 
     const parsed: SaveSlotData = JSON.parse(raw);
-    const tileMap = new Map<string, BoardHex>(parsed.boardState.tiles);
+    let tileMap = new Map<string, BoardHex>(parsed.boardState.tiles);
 
-    // Sanitize and upgrade tile terrain against official mission specification
+    // Sanitize and upgrade tile terrain and geometry against official mission specification
     if (parsed.boardState.missionData?.id) {
       const missionDef = missions.find((m) => m.id === parsed.boardState.missionData?.id);
-      if (missionDef?.hexes) {
-        missionDef.hexes.forEach((h) => {
-          const q = h.col ?? (h as any).q;
-          const r = h.row ?? (h as any).r;
-          const tile = tileMap.get(`${q},${r}`);
-          if (tile) {
-            const raw = (h.terrain || '').toLowerCase();
-            if (raw === 'road') tile.terrain = 'road';
-            else if (raw === 'mud') tile.terrain = 'mud';
-            else if (raw === 'woods') tile.terrain = 'woods';
-            else if (raw === 'water') tile.terrain = 'water';
-            else if (raw === 'building') tile.terrain = 'building';
+      if (missionDef?.hexes && missionDef.hexes.length > 0) {
+        const hasMismatch =
+          tileMap.size !== missionDef.hexes.length ||
+          missionDef.hexes.some((h) => {
+            const q = h.col ?? (h as any).q;
+            const r = h.row ?? (h as any).r;
+            return !tileMap.has(`${q},${r}`);
+          });
+
+        if (hasMismatch) {
+          // Re-initialize boardState with fresh geometry if saved slot had obsolete rectangular map
+          const freshBoard = loadMissionState(missionDef);
+          tileMap = freshBoard.tiles;
+          parsed.boardState.tiles = Array.from(tileMap.entries());
+          parsed.boardState.enemyTanks = freshBoard.enemyTanks;
+          parsed.boardState.enemyInfantry = freshBoard.enemyInfantry;
+          parsed.boardState.missionData = freshBoard.missionData;
+          if (!tileMap.has(`${parsed.boardState.sherman.coord.q},${parsed.boardState.sherman.coord.r}`)) {
+            parsed.boardState.sherman.coord = freshBoard.sherman.coord;
+            parsed.boardState.sherman.facing = freshBoard.sherman.facing;
           }
-        });
+        } else {
+          missionDef.hexes.forEach((h) => {
+            const q = h.col ?? (h as any).q;
+            const r = h.row ?? (h as any).r;
+            const tile = tileMap.get(`${q},${r}`);
+            if (tile) {
+              const raw = (h.terrain || '').toLowerCase();
+              if (raw === 'road') tile.terrain = 'road';
+              else if (raw === 'mud') tile.terrain = 'mud';
+              else if (raw === 'woods') tile.terrain = 'woods';
+              else if (raw === 'water') tile.terrain = 'water';
+              else if (raw === 'building') tile.terrain = 'building';
+            }
+          });
+        }
       }
     }
 
