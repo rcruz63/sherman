@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import mission3Raw from '../../../data/missions/mission3.json';
 import mission4Raw from '../../../data/missions/mission4.json';
-import { MissionJSON, EnemyInfantry } from '../../../types/game';
+import { MissionJSON } from '../../../types/game';
 import { loadMissionState } from '../missionLoader';
 import { checkGameEndConditions } from '../turnManager';
 
@@ -10,27 +10,40 @@ const mission4 = mission4Raw as MissionJSON;
 
 describe('Missions 3 & 4 Victory Conditions Verification', () => {
   describe('Mission 3 - Elimina la Infantería', () => {
-    it('achieves VICTORY by eliminating all infantry and reaching exit hex, ignoring alive tanks', () => {
+    it('initializes 36-hex grid, 6 building infantry, 2 Panzer IVs, and Sherman at (3,6)', () => {
+      const boardState = loadMissionState(mission3);
+
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+      expect(boardState.sherman.facing).toBe(0);
+
+      // Verify 2 Panzer IVs deployed on black spots
+      expect(boardState.enemyTanks).toHaveLength(2);
+      expect(boardState.enemyTanks.every((t) => t.type === 'panzerIV')).toBe(true);
+
+      // Verify 6 infantry squads spawned on the 6 building hexes
+      expect(boardState.enemyInfantry).toHaveLength(6);
+      boardState.enemyInfantry.forEach((inf) => {
+        const tile = boardState.tiles.get(`${inf.coord.q},${inf.coord.r}`);
+        expect(tile?.hasBuilding).toBe(true);
+        expect(inf.status).toBe('active');
+      });
+    });
+
+    it('achieves VICTORY by eliminating all infantry and reaching exit hex (3,0), ignoring alive tanks', () => {
       const boardState = loadMissionState(mission3);
 
       // Verify German tanks are operational
       expect(boardState.enemyTanks.length).toBeGreaterThan(0);
       boardState.enemyTanks.forEach((t) => expect(t.status).toBe('operational'));
 
-      // Spawn 6 infantry squads and eliminate them
-      const infantryList: EnemyInfantry[] = [];
-      for (let i = 1; i <= 6; i++) {
-        infantryList.push({
-          id: `inf_${i}`,
-          type: 'infantry',
-          coord: { q: i % 3, r: i },
-          status: 'eliminated', // All eliminated
-        });
-      }
-      boardState.enemyInfantry = infantryList;
+      // Eliminate all infantry
+      boardState.enemyInfantry.forEach((inf) => {
+        inf.status = 'eliminated';
+      });
 
-      // Move Sherman to exit hex (1,0)
-      boardState.sherman.coord = { q: 1, r: 0 };
+      // Move Sherman to exit hex (3,0)
+      boardState.sherman.coord = { q: 3, r: 0 };
 
       const gameEnd = checkGameEndConditions(boardState);
 
