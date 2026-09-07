@@ -113,16 +113,15 @@ describe('Missions 3 & 4 Victory Conditions Verification', () => {
       const dice = mission4.shermanDicePool;
       expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
       expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
-      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
+      expect(dice.misc).toEqual({ road: 1, field: 1, mud: 2 });
 
       const events = mission4.endOfTurnEvents;
       expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('SNIPER');
-      expect(events.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
       expect(events.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
       expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
-      expect(events.find((e) => 9 >= e.rollMin && 9 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
-      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('STUKA');
-      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
     });
   });
 });

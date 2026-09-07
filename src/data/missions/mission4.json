@@ -408,8 +408,8 @@
     },
     "misc": {
       "road": 1,
-      "field": 2,
-      "mud": 1
+      "field": 1,
+      "mud": 2
     }
   },
   "endOfTurnEvents": [
@@ -417,13 +417,13 @@
       "rollMin": 2,
       "rollMax": 3,
       "type": "SNIPER",
-      "description": "Francotirador: Si Comandante = Asomado (A) y en línea de visión de cualquier infantería (cualquier distancia), queda KIA."
+      "description": "Francotirador: Si Comandante = Asomado (A) y en línea de visión de infantería, queda KIA."
     },
     {
       "rollMin": 4,
       "rollMax": 4,
-      "type": "COMMANDER_ORDER",
-      "description": "Si el Comandante no está KIA, realiza 1 acción gratis entre Cargar, Reparar o Extinguir."
+      "type": "MECHANICAL_FAILURE",
+      "description": "Fallo mecánico: El Sherman queda Inmovilizado si no lo estaba."
     },
     {
       "rollMin": 5,
@@ -433,27 +433,21 @@
     },
     {
       "rollMin": 7,
-      "rollMax": 8,
+      "rollMax": 9,
       "type": "INFANTRY_ATTACK",
       "description": "Toda infantería alemana adyacente ataca a Distancia 1 (Pen 1 vs Blindaje del Sherman)."
     },
     {
-      "rollMin": 9,
-      "rollMax": 9,
-      "type": "MECHANICAL_FAILURE",
-      "description": "Fallo mecánico: El Sherman queda Inmovilizado si no lo estaba ya."
-    },
-    {
       "rollMin": 10,
       "rollMax": 10,
-      "type": "STUKA",
-      "description": "Ataque aéreo Stuka. Si Comandante = Asomado, 6+ lo derriba; si no, impacta con 8+ (Pen 1 vs BL 4)."
+      "type": "COMMANDER_ORDER",
+      "description": "Si el Comandante no está KIA, realiza 1 acción gratis entre Cargar, Reparar o Extinguir."
     },
     {
       "rollMin": 11,
       "rollMax": 12,
-      "type": "SPAWN_PANZER_III",
-      "description": "Lanza 1d6: Colocar Panzer III en hexágono negro sin tanque encarando al número."
+      "type": "STUKA",
+      "description": "Ataque aéreo Stuka. Si Comandante = Asomado, 6+ lo derriba; si no, impacta con 8+ (Pen 1 vs BL 4)."
     }
   ]
 }

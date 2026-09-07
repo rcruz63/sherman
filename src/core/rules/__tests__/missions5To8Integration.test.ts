@@ -56,8 +56,8 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
 
       const events = mission5.endOfTurnEvents;
-      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
-      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('MOVE_TRUCK');
+      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('MOVE_TRUCK');
       expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
       expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_IV');
     });
@@ -94,10 +94,10 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
 
       const events = mission6.endOfTurnEvents;
-      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('SNIPER');
-      expect(events.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
+      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('SNIPER');
+      expect(events.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
       expect(events.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('MINES');
-      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 7 >= e.rollMin && 7 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
       expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
       expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
       expect(events.find((e) => 12 >= e.rollMin && 12 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
@@ -143,9 +143,9 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
 
       const events = mission7.endOfTurnEvents;
-      expect(events.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('MINES');
+      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('MINES');
       expect(events.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
-      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
+      expect(events.find((e) => 7 >= e.rollMin && 7 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
       expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
       expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
     });
@@ -197,13 +197,11 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
 
       const events = mission8.endOfTurnEvents;
-      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('SNIPER');
-      expect(events.find((e) => 4 >= e.rollMin && 4 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('MINES');
       expect(events.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
       expect(events.find((e) => 7 >= e.rollMin && 7 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
-      expect(events.find((e) => 9 >= e.rollMin && 9 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
-      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('STUKA');
-      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
     });
   });
 });

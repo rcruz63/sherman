@@ -588,33 +588,27 @@
   "endOfTurnEvents": [
     {
       "rollMin": 2,
-      "rollMax": 3,
+      "rollMax": 5,
       "type": "INFANTRY_ATTACK",
-      "description": "Toda infantería alemana adyacente ataca a Distancia 1 (Pen 1 vs Blindaje del Sherman)."
+      "description": "Toda infantería alemana adyacente ataca a Distancia 1; ¿Daños? con Pen 1."
     },
     {
-      "rollMin": 4,
-      "rollMax": 8,
-      "type": "MOVE_TRUCK",
-      "description": "¡El camión de suministros alemán avanza 1 casilla hacia el sur por la carretera!"
-    },
-    {
-      "rollMin": 9,
+      "rollMin": 6,
       "rollMax": 9,
-      "type": "MECHANICAL_FAILURE",
-      "description": "Fallo mecánico: El Sherman queda Inmovilizado si no lo estaba ya."
+      "type": "MOVE_TRUCK",
+      "description": "El camión avanza 1 hexágono por la carretera hacia el sur."
     },
     {
       "rollMin": 10,
       "rollMax": 10,
       "type": "COMMANDER_ORDER",
-      "description": "Si el Comandante no está KIA, realiza 1 acción gratis entre Cargar, Reparar o Extinguir."
+      "description": "Si Cte no está KIA: 1 acción gratis entre Cargar, Reparar o Extinguir."
     },
     {
       "rollMin": 11,
       "rollMax": 12,
       "type": "SPAWN_PANZER_IV",
-      "description": "Lanza 1d6: Colocar Panzer IV en hexágono negro sin tanque encarando al número."
+      "description": "Tirar 1d6: Colocar Panzer IV en hex negro libre encarando al número."
     }
   ]
 }

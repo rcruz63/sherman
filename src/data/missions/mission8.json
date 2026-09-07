@@ -482,45 +482,33 @@
   "endOfTurnEvents": [
     {
       "rollMin": 2,
-      "rollMax": 3,
-      "type": "SNIPER",
-      "description": "Si Cte = A y en LOS de infantería, queda KIA."
-    },
-    {
-      "rollMin": 4,
       "rollMax": 4,
-      "type": "COMMANDER_ORDER",
-      "description": "Si Cte no está KIA: Cargar, Reparar o Extinguir."
+      "type": "MINES",
+      "description": "¡Minas! Si el Sherman está en Carretera y no Inmovilizado, impacto con Pen 0 vs BL 4."
     },
     {
       "rollMin": 5,
       "rollMax": 6,
       "type": "SPAWN_INFANTRY",
-      "description": "Lanza d6: Colocar en hex rojo correspondiente."
+      "description": "Tirar 1d6: Colocar infantería en hex rojo coincidente sin unidades."
     },
     {
       "rollMin": 7,
-      "rollMax": 8,
-      "type": "INFANTRY_ATTACK",
-      "description": "Infantería adyacente ataca a dist 1, Pen 1."
-    },
-    {
-      "rollMin": 9,
       "rollMax": 9,
-      "type": "MECHANICAL_FAILURE",
-      "description": "El Sherman queda Inmovilizado."
+      "type": "INFANTRY_ATTACK",
+      "description": "Infantería adyacente ataca a Distancia 1; ¿Daños? con Pen 1."
     },
     {
       "rollMin": 10,
       "rollMax": 10,
-      "type": "STUKA",
-      "description": "Ataque aéreo Stuka."
+      "type": "COMMANDER_ORDER",
+      "description": "Si Cte no está KIA: 1 acción gratis entre Cargar, Reparar o Extinguir."
     },
     {
       "rollMin": 11,
       "rollMax": 12,
-      "type": "SPAWN_PANZER_III",
-      "description": "Lanza d6: Colocar Panzer III en hex negro."
+      "type": "STUKA",
+      "description": "Cte Asomado derriba con 6+; si no, Stuka impacta con 8+ (Pen 1 vs BL 4)."
     }
   ]
 }
