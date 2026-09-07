@@ -32,7 +32,7 @@ const EMPTY_MISSION: MissionJSON = {
   victoryConditions: {
     destroyAllEnemiesOfType: ["PANZER_IV"],
     requireMapExit: true,
-    exitHex: { col: 2, row: 0 }
+    exitHex: { q: 2, r: 0, col: 2, row: 0 }
   },
   defeatConditions: {
     shermanDestroyed: true,
@@ -125,6 +125,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
         return {
           ...hex,
           isEntry: isTarget,
+          entryFacing: isTarget ? selectedSpotFacing : undefined,
           isExit: isTarget ? false : hex.isExit,
         };
       });
@@ -135,16 +136,82 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
     }
 
     if (activeTool === 'exit') {
+      const exitFacing = selectedSpotFacing;
       updatedMission.hexes = hexes.map((hex) => {
         const isTarget = hex.col === targetQ && hex.row === targetR;
         return {
           ...hex,
           isExit: isTarget,
+          exitFacing: isTarget ? exitFacing : (hex.isExit ? hex.exitFacing : undefined),
           isEntry: isTarget ? false : hex.isEntry,
         };
       });
-      updatedMission.victoryConditions.exitHex = { col: targetQ, row: targetR };
+      updatedMission.victoryConditions.exitHex = { q: targetQ, r: targetR, col: targetQ, row: targetR, facing: exitFacing };
+      updatedMission.victoryConditions.exitFacing = exitFacing;
       updatedMission.victoryConditions.requireMapExit = true;
+      setMission(updatedMission);
+      return;
+    }
+
+    if (activeTool === 'redSpot') {
+      const clickedHex = hexes.find((h) => h.col === targetQ && h.row === targetR);
+      const isSameSpotNumber = clickedHex?.redSpot === selectedSpotNum;
+
+      updatedMission.hexes = hexes.map((hex) => {
+        const isTarget = hex.col === targetQ && hex.row === targetR;
+        const newHex = { ...hex };
+
+        // Clean up any duplicate of this spot number on any other hex
+        if (newHex.redSpot === selectedSpotNum) {
+          delete newHex.redSpot;
+        }
+
+        if (isTarget) {
+          if (isSameSpotNumber) {
+            delete newHex.redSpot;
+          } else {
+            newHex.redSpot = selectedSpotNum;
+          }
+        }
+        return newHex;
+      });
+
+      if (!isSameSpotNumber) {
+        setSelectedSpotNum((prev) => (prev >= 6 ? 1 : prev + 1));
+      }
+
+      setMission(updatedMission);
+      return;
+    }
+
+    if (activeTool === 'blackSpot') {
+      const clickedHex = hexes.find((h) => h.col === targetQ && h.row === targetR);
+      const hasThisSpot = clickedHex?.blackSpot?.number === selectedSpotNum;
+      const sameFacing = hasThisSpot && clickedHex?.blackSpot?.facing === selectedSpotFacing;
+
+      updatedMission.hexes = hexes.map((hex) => {
+        const isTarget = hex.col === targetQ && hex.row === targetR;
+        const newHex = { ...hex };
+
+        // Remove previous instance of this spot number elsewhere
+        if (!isTarget && newHex.blackSpot?.number === selectedSpotNum) {
+          delete newHex.blackSpot;
+        }
+
+        if (isTarget) {
+          if (sameFacing) {
+            delete newHex.blackSpot;
+          } else {
+            newHex.blackSpot = { number: selectedSpotNum, facing: selectedSpotFacing };
+          }
+        }
+        return newHex;
+      });
+
+      if (!hasThisSpot) {
+        setSelectedSpotNum((prev) => (prev >= 6 ? 1 : prev + 1));
+      }
+
       setMission(updatedMission);
       return;
     }
@@ -211,18 +278,6 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
             newHex.roadEdges = roads.filter((d) => d !== dirStr);
           }
           if (shouldAddEdge) newHex.roadEdges = roads;
-        } else if (activeTool === 'blackSpot') {
-          if (newHex.blackSpot?.number === selectedSpotNum) {
-            delete newHex.blackSpot;
-          } else {
-            newHex.blackSpot = { number: selectedSpotNum, facing: selectedSpotFacing };
-          }
-        } else if (activeTool === 'redSpot') {
-          if (newHex.redSpot === selectedSpotNum) {
-            delete newHex.redSpot;
-          } else {
-            newHex.redSpot = selectedSpotNum;
-          }
         }
       }
 
@@ -584,7 +639,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
           {activeTool === 'exit' && (
             <div className="space-y-3">
               <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                <div className="text-[11px] font-bold text-emerald-400">🏁 Salida de la Misión:</div>
+                <div className="text-[11px] font-bold text-rose-400">🏁 Salida de la Misión:</div>
                 <div className="text-slate-200 text-xs mt-1">
                   Posición:{' '}
                   <strong className="text-emerald-400">
@@ -592,6 +647,48 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
                       ? `(${(mission.victoryConditions.exitHex as any).col ?? (mission.victoryConditions.exitHex as any).q}, ${(mission.victoryConditions.exitHex as any).row ?? (mission.victoryConditions.exitHex as any).r})`
                       : 'No asignada'}
                   </strong>
+                </div>
+                <div className="text-slate-400 text-[10px] mt-0.5">
+                  Dirección de Salida:{' '}
+                  <strong>
+                    {INDEX_TO_DIR[((mission.victoryConditions.exitFacing ?? (mission.victoryConditions.exitHex as any)?.facing ?? 0) % 6) as Facing]} (
+                    {mission.victoryConditions.exitFacing ?? (mission.victoryConditions.exitHex as any)?.facing ?? 0})
+                  </strong>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-slate-300 mb-1">Dirección / Arista de Salida:</h4>
+                <div className="grid grid-cols-3 gap-1">
+                  {([0, 1, 2, 3, 4, 5] as Facing[]).map((f) => {
+                    const currentExitFacing = mission.victoryConditions.exitFacing ?? (mission.victoryConditions.exitHex as any)?.facing ?? 0;
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => {
+                          setSelectedSpotFacing(f);
+                          const updated = JSON.parse(JSON.stringify(mission)) as MissionJSON;
+                          updated.victoryConditions.exitFacing = f;
+                          if (updated.victoryConditions.exitHex) {
+                            (updated.victoryConditions.exitHex as any).facing = f;
+                          }
+                          if (updated.hexes) {
+                            updated.hexes = updated.hexes.map((h) =>
+                              h.isExit ? { ...h, exitFacing: f } : h
+                            );
+                          }
+                          setMission(updated);
+                        }}
+                        className={`py-1.5 rounded font-mono font-bold text-center border ${
+                          currentExitFacing === f
+                            ? 'bg-rose-700 border-rose-400 text-white'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {INDEX_TO_DIR[f]} ({f})
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

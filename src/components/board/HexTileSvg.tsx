@@ -220,23 +220,32 @@ export const HexTileSvg: React.FC<HexTileSvgProps> = ({
         </g>
       )}
 
-      {/* Entry Arrow Badge (Sherman Entry at 5,4) */}
+      {/* Entry Badge */}
       {tile.isEntryHex && (
-        <g transform={`translate(${center.x}, ${center.y + radius * 0.45})`}>
-          <rect x={-22} y={-8} width={44} height={16} rx={4} fill="#475569" stroke="#94a3b8" strokeWidth={1} opacity={0.95} />
-          <text x={0} y={3} textAnchor="middle" fill="#f8fafc" fontSize="9" fontWeight="bold">
-            ENTRADA ➔
-          </text>
+        <g transform={`translate(${center.x}, ${center.y})`}>
+          <g transform={`translate(0, ${radius * 0.45})`}>
+            <rect x={-24} y={-8} width={48} height={16} rx={4} fill="#0284c7" stroke="#7dd3fc" strokeWidth={1} opacity={0.95} />
+            <text x={0} y={3} textAnchor="middle" fill="#f8fafc" fontSize="9" fontWeight="bold">
+              ENTRADA ➔
+            </text>
+          </g>
         </g>
       )}
 
-      {/* Exit Arrow Badge (Mission Exit at 2,0) */}
+      {/* Exit Badge with Directional Arrow */}
       {tile.isExitHex && (
-        <g transform={`translate(${center.x}, ${center.y - radius * 0.45})`}>
-          <rect x={-22} y={-8} width={44} height={16} rx={4} fill="#dc2626" stroke="#fca5a5" strokeWidth={1} opacity={0.95} />
-          <text x={0} y={3} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
-            ⬆ SALIDA
-          </text>
+        <g transform={`translate(${center.x}, ${center.y})`}>
+          {tile.exitFacing !== undefined && (
+            <g transform={`rotate(${getFacingAngleDegrees(tile.exitFacing)}) translate(${radius * 0.72}, 0)`}>
+              <polygon points="12,0 0,-7 3,0 0,7" fill="#ef4444" stroke="#ffffff" strokeWidth={1} />
+            </g>
+          )}
+          <g transform={`translate(0, ${-radius * 0.45})`}>
+            <rect x={-24} y={-8} width={48} height={16} rx={4} fill="#dc2626" stroke="#fca5a5" strokeWidth={1} opacity={0.95} />
+            <text x={0} y={3} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
+              🏁 SALIDA
+            </text>
+          </g>
         </g>
       )}
 

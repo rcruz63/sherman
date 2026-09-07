@@ -7,6 +7,9 @@ export type Facing = 0 | 1 | 2 | 3 | 4 | 5;
 export interface AxialCoord {
   q: number;
   r: number;
+  col?: number;
+  row?: number;
+  facing?: Facing;
 }
 
 export interface CubeCoord {
@@ -35,7 +38,9 @@ export interface BoardHex {
   blackSpawnFacing?: Facing;
   redSpawnNumber?: number;
   isEntryHex?: boolean;
+  entryFacing?: Facing;
   isExitHex?: boolean;
+  exitFacing?: Facing;
   isBridge?: boolean;
 }
 
@@ -242,7 +247,9 @@ export interface RawHexConfig {
   blackSpot?: { number: number; facing: Facing };
   redSpot?: number;
   isEntry?: boolean;
+  entryFacing?: Facing;
   isExit?: boolean;
+  exitFacing?: Facing;
   isBridge?: boolean;
 }
 
@@ -271,7 +278,8 @@ export interface VictoryConditions {
   clearAllEnemies?: boolean;
   crewRescued?: boolean;
   requireMapExit: boolean;
-  exitHex?: AxialCoord | { col: number; row: number };
+  exitHex?: AxialCoord;
+  exitFacing?: Facing;
 }
 
 export interface DefeatConditions {

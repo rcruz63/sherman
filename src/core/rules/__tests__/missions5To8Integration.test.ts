@@ -21,14 +21,19 @@ describe('Missions 5, 6, 7, and 8 Special Mechanics Tests', () => {
       expect(boardState.enemyTrucks).toBeDefined();
       expect(boardState.enemyTrucks).toHaveLength(1);
 
+      // Verify 3 infantry units deployed on red spots
+      expect(boardState.enemyInfantry).toHaveLength(3);
+      expect(boardState.enemyInfantry.every((inf) => inf.status === 'active')).toBe(true);
+
       const truck = boardState.enemyTrucks![0];
-      expect(truck.coord).toEqual({ q: 1, r: 1 });
+      expect(truck.coord).toEqual({ q: 2, r: 0 });
+      expect(truck.facing).toBe(2); // Heading SE
       expect(truck.moveIndex).toBe(0);
 
-      // Advance truck 1 step
+      // Advance truck 1 step along road (2,0) -> (3,0)
       const move1 = handleMoveTruckEvent(boardState);
       expect(move1.moved).toBe(true);
-      expect(truck.coord).toEqual({ q: 1, r: 2 });
+      expect(truck.coord).toEqual({ q: 3, r: 0 });
       expect(truck.moveIndex).toBe(1);
 
       // Advance truck remaining steps until maxMoves (8 moves)

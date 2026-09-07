@@ -37,6 +37,8 @@
     ],
     "requireMapExit": true,
     "exitHex": {
+      "q": 2,
+      "r": 0,
       "col": 2,
       "row": 0
     }

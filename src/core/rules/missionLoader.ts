@@ -83,6 +83,7 @@ export function resolveMissionEvent(events: EventRule[], roll: number): EventRul
 
 export interface LoadMissionOptions {
   selectedBlackSpawns?: number[]; // Fixed spawn numbers for deterministic testing/replays
+  selectedRedSpawns?: number[]; // Fixed red spawn numbers for deterministic testing/replays
 }
 
 export const DIR_STRING_MAP: Record<string, Facing> = {
@@ -167,11 +168,17 @@ export function loadMissionState(
         !!missionData.victoryConditions.requireMapExit &&
         !!exitCoord && exitCoord.q === q && exitCoord.r === r
       );
+      const exitFacing: Facing | undefined = isExit
+        ? (h.exitFacing ?? (missionData.victoryConditions.exitHex as any)?.facing ?? missionData.victoryConditions.exitFacing)
+        : undefined;
 
       const entryCoord = missionData.playerDeployment.hex ? parseAxialCoord(missionData.playerDeployment.hex) : null;
       const isEntry = !!h.isEntry || (
         !!entryCoord && entryCoord.q === q && entryCoord.r === r
       );
+      const entryFacing: Facing | undefined = isEntry
+        ? (h.entryFacing ?? missionData.playerDeployment.facing)
+        : undefined;
 
       const tile: BoardHex = {
         coord: { q, r },
@@ -185,7 +192,9 @@ export function loadMissionState(
         blackSpawnFacing: h.blackSpot?.facing,
         redSpawnNumber: h.redSpot,
         isEntryHex: isEntry,
+        entryFacing,
         isExitHex: isExit,
+        exitFacing,
         isBridge: !!h.isBridge,
       };
 
@@ -384,10 +393,12 @@ export function loadMissionState(
             LT: truckRules?.stats.lt || 1,
             T: truckRules?.stats.t || 1,
           },
-          roadPath: truckRules?.roadPath || [
-            { q: 1, r: 1 }, { q: 1, r: 2 }, { q: 1, r: 3 }, { q: 1, r: 4 },
-            { q: 1, r: 5 }, { q: 1, r: 6 }, { q: 1, r: 7 }, { q: 1, r: 8 },
-          ],
+          roadPath: (truckRules?.roadPath && truckRules.roadPath.length > 0)
+            ? truckRules.roadPath.map((p) => parseAxialCoord(p))
+            : [
+                { q: 1, r: 1 }, { q: 1, r: 2 }, { q: 1, r: 3 }, { q: 1, r: 4 },
+                { q: 1, r: 5 }, { q: 1, r: 6 }, { q: 1, r: 7 }, { q: 1, r: 8 },
+              ],
         });
       }
     });
@@ -431,8 +442,15 @@ export function loadMissionState(
           });
         }
       } else if (infConfig.spawnMethod === 'RANDOM_UNIQUE_RED_NUMBERS' && infConfig.count) {
-        const availableRedSpawns = [...redNumbers].sort(() => 0.5 - Math.random());
-        const selected = availableRedSpawns.slice(0, infConfig.count);
+        let selected: RedSpawnPoint[] = [];
+        if (options?.selectedRedSpawns && options.selectedRedSpawns.length > 0) {
+          selected = options.selectedRedSpawns
+            .map((num) => redNumbers.find((sp) => sp.number === num))
+            .filter((sp): sp is RedSpawnPoint => !!sp);
+        } else {
+          const availableRedSpawns = [...redNumbers].sort(() => 0.5 - Math.random());
+          selected = availableRedSpawns.slice(0, infConfig.count);
+        }
         selected.forEach((sp) => {
           enemyInfantry.push({
             id: `inf_${infIdCounter++}`,

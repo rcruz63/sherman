@@ -12,6 +12,7 @@ import {
 } from '../../types/game';
 import { checkLOS } from '../hex/los';
 import { hexDistance, coordKey } from '../hex/math';
+import { getClosestDirection } from '../hex/facing';
 import {
   calculateHitDifficulty,
   resolveDamageCheck,
@@ -710,6 +711,7 @@ export function handleMoveTruckEvent(boardState: BoardState): MoveTruckResult {
     }
   }
 
+  truck.facing = getClosestDirection(truck.coord, targetHex);
   truck.moveIndex = nextIndex;
   truck.coord = { ...targetHex };
 
