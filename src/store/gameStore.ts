@@ -60,6 +60,9 @@ export interface GameStoreState {
   logVerbosity: LogVerbosityMode;
   gameEndStatus: GameEndStatus | null;
 
+  selectedTargetId: string | null;
+  setSelectedTargetId: (id: string | null) => void;
+
   // Multi-slot & Campaign Mode State
   currentSlotId: string | null;
   gameMode: 'single' | 'campaign';
@@ -131,6 +134,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   combatLog: [],
   logVerbosity: 'compact',
   gameEndStatus: null,
+  selectedTargetId: null,
+  setSelectedTargetId: (id: string | null) => set({ selectedTargetId: id }),
 
   currentSlotId: null,
   gameMode: 'single',

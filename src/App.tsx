@@ -20,6 +20,8 @@ export const App: React.FC = () => {
     combatLog,
     gameMode,
     campaignState,
+    selectedTargetId,
+    setSelectedTargetId,
     loadMission,
     addLogMessage,
     isIntermissionOpen,
@@ -70,7 +72,11 @@ export const App: React.FC = () => {
     );
   }
 
-  const primaryTarget = boardState.enemyTanks.find((t) => t.status !== 'destroyed') || boardState.enemyTanks[0];
+  const primaryTarget =
+    boardState.enemyTanks.find((t) => t.id === selectedTargetId && t.status !== 'destroyed') ||
+    boardState.enemyTanks.find((t) => t.status !== 'destroyed') ||
+    boardState.enemyTanks[0];
+
   const selectedEnemy = selectedTile
     ? boardState.enemyTanks.find((t) => t.coord.q === selectedTile.coord.q && t.coord.r === selectedTile.coord.r)
     : primaryTarget;
@@ -224,7 +230,15 @@ export const App: React.FC = () => {
             <HexBoard
               boardState={boardState}
               selectedTile={selectedTile}
-              onTileSelect={(tile) => setSelectedTile(tile)}
+              onTileSelect={(tile) => {
+                setSelectedTile(tile);
+                const tankAtTile = boardState.enemyTanks.find(
+                  (t) => t.coord.q === tile.coord.q && t.coord.r === tile.coord.r
+                );
+                if (tankAtTile) {
+                  setSelectedTargetId(tankAtTile.id);
+                }
+              }}
             />
           </div>
 
@@ -245,9 +259,12 @@ export const App: React.FC = () => {
                 <span>Dificultad (2d6): <strong className="text-amber-400">{combatAnalysis.totalDifficulty === Infinity ? 'N/A' : combatAnalysis.totalDifficulty}</strong></span>
               </div>
 
-              {selectedTile && (
+              {(selectedTile || selectedTargetId) && (
                 <button
-                  onClick={() => setSelectedTile(null)}
+                  onClick={() => {
+                    setSelectedTile(null);
+                    setSelectedTargetId(null);
+                  }}
                   className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg font-semibold border border-slate-700"
                 >
                   Limpiar Selección

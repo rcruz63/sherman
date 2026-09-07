@@ -131,6 +131,8 @@ export function loadMissionState(
       if (rawTerrain === 'water') terrain = 'water';
       else if (rawTerrain === 'mud') terrain = 'mud';
       else if (rawTerrain === 'woods') terrain = 'woods';
+      else if (rawTerrain === 'road') terrain = 'road';
+      else if (rawTerrain === 'building') terrain = 'building';
       else terrain = 'field';
 
       const hasBuilding = !!h.hasBuilding || rawTerrain === 'building';

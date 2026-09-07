@@ -3,10 +3,13 @@ import { useGameStore } from '../../store/gameStore';
 import { TurnPhase } from '../../types/game';
 import { calculateSectionDice, getAvailableDoubles } from '../../core/rules/shermanOperations';
 import { hexDistance } from '../../core/hex/math';
+import { calculateHitDifficulty } from '../../core/rules/combat';
 
 export const PhaseConsole: React.FC = () => {
   const {
     boardState,
+    selectedTargetId,
+    setSelectedTargetId,
     setPhase,
     addLogMessage,
     rescueCrew,
@@ -250,6 +253,11 @@ export const PhaseConsole: React.FC = () => {
 
                   // Target finders
                   const activeTanks = boardState.enemyTanks.filter((t) => t.status !== 'destroyed');
+                  const chosenTarget =
+                    activeTanks.find((t) => t.id === selectedTargetId) ||
+                    activeTanks.find((t) => calculateHitDifficulty(sherman, t, boardState).hasLOS) ||
+                    activeTanks[0];
+                  const chosenTargetCalc = chosenTarget ? calculateHitDifficulty(sherman, chosenTarget, boardState) : null;
                   const adjacentInfantry = boardState.enemyInfantry.filter(
                     (inf) => inf.status !== 'eliminated' && hexDistance(sherman.coord, inf.coord) === 1
                   );
@@ -365,8 +373,8 @@ export const PhaseConsole: React.FC = () => {
                                       } else if (dOpt.actionKey === 'double_load') {
                                         executeAttackLoad({ type: 'double', value: dOpt.value });
                                       } else if (dOpt.actionKey === 'double_dcp') {
-                                        if (activeTanks[0]) {
-                                          executeAttackFireGun(activeTanks[0], { type: 'double', value: dOpt.value });
+                                        if (chosenTarget) {
+                                          executeAttackFireGun(chosenTarget, { type: 'double', value: dOpt.value });
                                         }
                                       } else if (dOpt.actionKey === 'double_hull_down') {
                                         executeMiscAction('hull_down', { type: 'double', value: dOpt.value });
@@ -440,7 +448,53 @@ export const PhaseConsole: React.FC = () => {
 
                       {/* Tactical Action Buttons for ATTACK */}
                       {hasRolled && section === 'attack' && (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
+                          {/* Target Selector Banner */}
+                          {activeTanks.length > 0 && (
+                            <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-400 font-semibold uppercase tracking-wider">
+                                  🎯 Objetivo Seleccionado para Disparar:
+                                </span>
+                                {chosenTarget && chosenTargetCalc && (
+                                  <span className={chosenTargetCalc.hasLOS ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                                    {chosenTargetCalc.hasLOS
+                                      ? `LOS Despejada (Dif: ${chosenTargetCalc.totalDifficulty}+)`
+                                      : `LOS Bloqueada (${chosenTargetCalc.losReason || 'Obstáculo'})`}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {activeTanks.map((tank) => {
+                                  const calc = calculateHitDifficulty(sherman, tank, boardState);
+                                  const isSelected = chosenTarget?.id === tank.id;
+                                  return (
+                                    <button
+                                      key={tank.id}
+                                      onClick={() => setSelectedTargetId(tank.id)}
+                                      className={`px-3 py-2 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
+                                        isSelected
+                                          ? 'bg-amber-600 text-white border-amber-400 shadow-md ring-2 ring-amber-500/50'
+                                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                                      }`}
+                                    >
+                                      <span>🎯 {tank.type.toUpperCase()} #{tank.spawnNumber || ''} ({tank.coord.q},{tank.coord.r})</span>
+                                      <span
+                                        className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                                          calc.hasLOS
+                                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                                            : 'bg-red-950 text-red-300 border border-red-800'
+                                        }`}
+                                      >
+                                        {calc.hasLOS ? `Dif ${calc.totalDifficulty}+` : '❌ Sin LOS'}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                           <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                             Acciones de Ataque
                           </h5>
@@ -458,14 +512,32 @@ export const PhaseConsole: React.FC = () => {
 
                             <button
                               onClick={() => {
-                                if (activeTanks[0]) executeAttackFireGun(activeTanks[0]);
+                                if (chosenTarget) executeAttackFireGun(chosenTarget);
                               }}
-                              disabled={!sherman.isLoaded || sherman.isTurretDamaged || (!availableDice.includes(5) && !availableDice.includes(6))}
+                              disabled={
+                                !sherman.isLoaded ||
+                                sherman.isTurretDamaged ||
+                                !chosenTarget ||
+                                !chosenTargetCalc?.hasLOS ||
+                                (!availableDice.includes(5) && !availableDice.includes(6))
+                              }
                               className="min-h-[48px] p-2.5 bg-red-950 hover:bg-red-900 border border-red-800 disabled:opacity-40 text-red-400 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
                             >
-                              <span>🎯 Disparar Cañón Principal</span>
+                              <span>
+                                🎯 Disparar a {chosenTarget ? `${chosenTarget.type.toUpperCase()} #${chosenTarget.spawnNumber || ''}` : 'Objetivo'}
+                              </span>
                               <span className="text-[10px] text-slate-400 font-normal">
-                                Dado 5 o 6 ({countOf(5) + countOf(6)} disp.) {sherman.isTurretDamaged ? '(Torreta averiada)' : !sherman.isLoaded ? '(Descargado)' : ''}
+                                Dado 5 o 6 ({countOf(5) + countOf(6)} disp.) {
+                                  sherman.isTurretDamaged
+                                    ? '(Torreta averiada)'
+                                    : !sherman.isLoaded
+                                    ? '(Descargado)'
+                                    : !chosenTarget
+                                    ? '(Sin enemigo)'
+                                    : !chosenTargetCalc?.hasLOS
+                                    ? '(Sin visión)'
+                                    : `(Dif ${chosenTargetCalc.totalDifficulty}+)`
+                                }
                               </span>
                             </button>
 
@@ -504,15 +576,24 @@ export const PhaseConsole: React.FC = () => {
 
                             <button
                               onClick={() => {
-                                if (activeTanks[0]) {
-                                  executeMiscAction('dcp', { type: 'single', value: 1 }, { targetTank: activeTanks[0] });
+                                if (chosenTarget) {
+                                  executeMiscAction('dcp', { type: 'single', value: 1 }, { targetTank: chosenTarget });
                                 }
                               }}
-                              disabled={!availableDice.includes(1) || !sherman.isLoaded || sherman.isTurretDamaged || sherman.crew.gunner.status !== 'active'}
+                              disabled={
+                                !availableDice.includes(1) ||
+                                !sherman.isLoaded ||
+                                sherman.isTurretDamaged ||
+                                sherman.crew.gunner.status !== 'active' ||
+                                !chosenTarget ||
+                                !chosenTargetCalc?.hasLOS
+                              }
                               className="min-h-[48px] p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5"
                             >
                               <span>🎯 DCP (Artillero)</span>
-                              <span className="text-[10px] text-amber-400 font-normal">Dado 1 ({countOf(1)} disp.)</span>
+                              <span className="text-[10px] text-amber-400 font-normal">
+                                Dado 1 ({countOf(1)} disp.) {chosenTarget ? `➔ ${chosenTarget.type.toUpperCase()}` : ''}
+                              </span>
                             </button>
 
                             {/* Die 2: MG */}

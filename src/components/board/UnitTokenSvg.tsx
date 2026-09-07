@@ -188,3 +188,102 @@ export const EnemyTankTokenSvg: React.FC<EnemyTankTokenProps> = ({
     </g>
   );
 };
+
+export interface EnemyInfantryTokenProps {
+  coord: AxialCoord;
+  radius: number;
+  spawnNumber?: number;
+  status: 'active' | 'eliminated';
+  isObjective?: boolean;
+  onClick?: () => void;
+}
+
+export const EnemyInfantryTokenSvg: React.FC<EnemyInfantryTokenProps> = ({
+  coord,
+  radius,
+  spawnNumber,
+  status,
+  isObjective,
+  onClick,
+}) => {
+  const center = getHexCenter(coord, radius);
+  const isEliminated = status === 'eliminated';
+
+  return (
+    <g
+      className="cursor-pointer transition-transform duration-300 hover:scale-105"
+      transform={`translate(${center.x}, ${center.y})`}
+      onClick={onClick}
+    >
+      {isEliminated ? (
+        <g>
+          <circle cx={0} cy={0} r={12} fill="#3f1d1d" stroke="#7f1d1d" strokeWidth={1.5} opacity={0.6} />
+          <text x={0} y={4} textAnchor="middle" fill="#ef4444" fontSize="12">
+            ☠️
+          </text>
+        </g>
+      ) : (
+        <g>
+          {/* Soldier Silhouette Token */}
+          <circle cx={0} cy={0} r={14} fill="#881337" stroke="#f43f5e" strokeWidth={1.5} />
+          <text x={0} y={4} textAnchor="middle" fill="#ffe4e6" fontSize="13">
+            💂
+          </text>
+          {/* Label Badge */}
+          <rect x={-18} y={-22} width={36} height={12} rx={3} fill="#0f172a" stroke="#f43f5e" strokeWidth={1} opacity={0.9} />
+          <text x={0} y={-13} textAnchor="middle" fill="#fecdd3" fontSize="8" fontWeight="bold">
+            {isObjective ? 'OBJ INF' : `INF #${spawnNumber || ''}`}
+          </text>
+        </g>
+      )}
+    </g>
+  );
+};
+
+export interface EnemyTruckTokenProps {
+  coord: AxialCoord;
+  facing: Facing;
+  radius: number;
+  status: 'operational' | 'damaged' | 'destroyed';
+  onClick?: () => void;
+}
+
+export const EnemyTruckTokenSvg: React.FC<EnemyTruckTokenProps> = ({
+  coord,
+  facing,
+  radius,
+  status,
+  onClick,
+}) => {
+  const center = getHexCenter(coord, radius);
+  const rotationDeg = getFacingAngleDegrees(facing);
+  const isDestroyed = status === 'destroyed';
+
+  return (
+    <g
+      className="cursor-pointer transition-transform duration-300 hover:scale-105"
+      transform={`translate(${center.x}, ${center.y})`}
+      onClick={onClick}
+    >
+      {isDestroyed ? (
+        <g>
+          <circle cx={0} cy={0} r={14} fill="#451a03" stroke="#78350f" strokeWidth={1.5} />
+          <text x={0} y={4} textAnchor="middle" fill="#ef4444" fontSize="14">
+            💥
+          </text>
+        </g>
+      ) : (
+        <g transform={`rotate(${rotationDeg})`}>
+          <rect x={-12} y={-8} width={24} height={16} rx={2} fill="#713f12" stroke="#eab308" strokeWidth={1.5} />
+          <rect x={-10} y={-6} width={10} height={12} rx={1} fill="#854d0e" />
+          <polygon points="12,0 8,-4 8,4" fill="#eab308" />
+        </g>
+      )}
+      <rect x={-18} y={-22} width={36} height={12} rx={3} fill="#0f172a" stroke="#eab308" strokeWidth={1} opacity={0.9} />
+      <text x={0} y={-13} textAnchor="middle" fill="#fef08a" fontSize="8" fontWeight="bold">
+        CAMIÓN
+      </text>
+    </g>
+  );
+};
+

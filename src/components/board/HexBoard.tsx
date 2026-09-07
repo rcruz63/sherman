@@ -1,7 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { BoardHex, BoardState } from '../../types/game';
 import { HexTileSvg } from './HexTileSvg';
-import { EnemyTankTokenSvg, ShermanTokenSvg } from './UnitTokenSvg';
+import {
+  EnemyTankTokenSvg,
+  ShermanTokenSvg,
+  EnemyInfantryTokenSvg,
+  EnemyTruckTokenSvg,
+} from './UnitTokenSvg';
 import { getHexCenter } from './hexSvgUtils';
 
 interface HexBoardProps {
@@ -126,34 +131,81 @@ export const HexBoard: React.FC<HexBoardProps> = ({
           ))}
 
           {/* Enemy Tanks */}
-          {boardState.enemyTanks.map((tank) => (
-            <EnemyTankTokenSvg
-              key={tank.id}
-              coord={tank.coord}
-              facing={tank.facing}
-              radius={hexRadius}
-              type={tank.type}
-              spawnNumber={tank.spawnNumber}
-              status={tank.status}
-              hasSmoke={tank.hasSmoke}
-              isHullDown={tank.isHullDown}
-            />
-          ))}
+          {boardState.enemyTanks.map((tank) => {
+            const tile = boardState.tiles.get(`${tank.coord.q},${tank.coord.r}`);
+            return (
+              <EnemyTankTokenSvg
+                key={tank.id}
+                coord={tank.coord}
+                facing={tank.facing}
+                radius={hexRadius}
+                type={tank.type}
+                spawnNumber={tank.spawnNumber}
+                status={tank.status}
+                hasSmoke={tank.hasSmoke}
+                isHullDown={tank.isHullDown}
+                onClick={() => {
+                  if (tile) onTileSelect?.(tile);
+                }}
+              />
+            );
+          })}
+
+          {/* Enemy Trucks */}
+          {(boardState.enemyTrucks || []).map((truck) => {
+            const tile = boardState.tiles.get(`${truck.coord.q},${truck.coord.r}`);
+            return (
+              <EnemyTruckTokenSvg
+                key={truck.id}
+                coord={truck.coord}
+                facing={truck.facing}
+                radius={hexRadius}
+                status={truck.status}
+                onClick={() => {
+                  if (tile) onTileSelect?.(tile);
+                }}
+              />
+            );
+          })}
+
+          {/* Enemy Infantry */}
+          {(boardState.enemyInfantry || []).map((inf) => {
+            const tile = boardState.tiles.get(`${inf.coord.q},${inf.coord.r}`);
+            return (
+              <EnemyInfantryTokenSvg
+                key={inf.id}
+                coord={inf.coord}
+                radius={hexRadius}
+                spawnNumber={inf.spawnNumber}
+                status={inf.status}
+                isObjective={inf.isObjective}
+                onClick={() => {
+                  if (tile) onTileSelect?.(tile);
+                }}
+              />
+            );
+          })}
 
           {/* Player Sherman Tank */}
-          {boardState.sherman && (
-            <ShermanTokenSvg
-              coord={boardState.sherman.coord}
-              facing={boardState.sherman.facing}
-              radius={hexRadius}
-              isLoaded={boardState.sherman.isLoaded}
-              fireLevel={boardState.sherman.fireLevel}
-              hasSmoke={boardState.sherman.hasSmoke}
-              isHullDown={boardState.sherman.isHullDown}
-              isImmobilized={boardState.sherman.isImmobilized}
-              isTurretDamaged={boardState.sherman.isTurretDamaged}
-            />
-          )}
+          {boardState.sherman && (() => {
+            const shermanTile = boardState.tiles.get(`${boardState.sherman.coord.q},${boardState.sherman.coord.r}`);
+            return (
+              <ShermanTokenSvg
+                coord={boardState.sherman.coord}
+                facing={boardState.sherman.facing}
+                radius={hexRadius}
+                isLoaded={boardState.sherman.isLoaded}
+                fireLevel={boardState.sherman.fireLevel}
+                hasSmoke={boardState.sherman.hasSmoke}
+                isHullDown={boardState.sherman.isHullDown}
+                isImmobilized={boardState.sherman.isImmobilized}
+                isTurretDamaged={boardState.sherman.isTurretDamaged}
+                onClick={() => {
+                  if (shermanTile) onTileSelect?.(shermanTile);
+                }}
+              />
+            );
+          })()}
         </g>
       </svg>
     </div>
