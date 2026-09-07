@@ -136,6 +136,34 @@ export const SaveSlotsModal: React.FC<SaveSlotsModalProps> = ({ isOpen, onClose,
     showNotification('💾 Partida actual guardada en el almacenamiento local.');
   };
 
+  const handleHardReset = async () => {
+    if (
+      window.confirm(
+        '¿Deseas restablecer completamente la caché de la aplicación y reiniciar? (Se actualizarán todos los mapas a la última versión y se limpiará el almacenamiento local).'
+      )
+    ) {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const reg of registrations) {
+            await reg.unregister();
+          }
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          for (const key of keys) {
+            await caches.delete(key);
+          }
+        }
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (err) {
+        console.error('Error limpiando caché:', err);
+      }
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-7 max-w-3xl w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
@@ -406,7 +434,14 @@ export const SaveSlotsModal: React.FC<SaveSlotsModalProps> = ({ isOpen, onClose,
         </div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-slate-800 shrink-0 flex justify-end">
+        <div className="pt-4 border-t border-slate-800 shrink-0 flex items-center justify-between gap-2 flex-wrap">
+          <button
+            onClick={handleHardReset}
+            className="px-3 py-2 bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-300 font-bold text-xs rounded-xl transition flex items-center gap-1.5"
+            title="Desregistra Service Worker, limpia Caché Storage y reinicia con los últimos mapas"
+          >
+            <span>🔄</span> Forzar Actualización y Limpiar Caché
+          </button>
           <button
             onClick={onClose}
             className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-2xl transition"
