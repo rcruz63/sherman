@@ -30,7 +30,7 @@ describe('Missions 3 & 4 Victory Conditions Verification', () => {
       });
     });
 
-    it('achieves VICTORY by eliminating all infantry and reaching exit hex (3,0), ignoring alive tanks', () => {
+    it('achieves VICTORY by eliminating all infantry and reaching exit hex (2,0), ignoring alive tanks', () => {
       const boardState = loadMissionState(mission3);
 
       // Verify German tanks are operational
@@ -42,8 +42,8 @@ describe('Missions 3 & 4 Victory Conditions Verification', () => {
         inf.status = 'eliminated';
       });
 
-      // Move Sherman to exit hex (3,0)
-      boardState.sherman.coord = { q: 3, r: 0 };
+      // Move Sherman to exit hex (2,0)
+      boardState.sherman.coord = { q: 2, r: 0 };
 
       const gameEnd = checkGameEndConditions(boardState);
 

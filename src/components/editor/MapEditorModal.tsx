@@ -12,7 +12,7 @@ interface MapEditorModalProps {
   onClose: () => void;
 }
 
-type EditorTool = 'terrain' | 'treeline' | 'road' | 'blackSpot' | 'redSpot' | 'entryExit' | 'bridge';
+type EditorTool = 'terrain' | 'treeline' | 'road' | 'blackSpot' | 'redSpot' | 'entry' | 'exit' | 'bridge';
 
 const EMPTY_MISSION: MissionJSON = {
   id: 2,
@@ -119,6 +119,36 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
     const targetQ = tile.coord.q;
     const targetR = tile.coord.r;
 
+    if (activeTool === 'entry') {
+      updatedMission.hexes = hexes.map((hex) => {
+        const isTarget = hex.col === targetQ && hex.row === targetR;
+        return {
+          ...hex,
+          isEntry: isTarget,
+          isExit: isTarget ? false : hex.isExit,
+        };
+      });
+      updatedMission.playerDeployment.hex = { col: targetQ, row: targetR };
+      updatedMission.playerDeployment.facing = selectedSpotFacing;
+      setMission(updatedMission);
+      return;
+    }
+
+    if (activeTool === 'exit') {
+      updatedMission.hexes = hexes.map((hex) => {
+        const isTarget = hex.col === targetQ && hex.row === targetR;
+        return {
+          ...hex,
+          isExit: isTarget,
+          isEntry: isTarget ? false : hex.isEntry,
+        };
+      });
+      updatedMission.victoryConditions.exitHex = { col: targetQ, row: targetR };
+      updatedMission.victoryConditions.requireMapExit = true;
+      setMission(updatedMission);
+      return;
+    }
+
     const dirIdx = selectedEdgeDir;
     const dirStr = INDEX_TO_DIR[dirIdx];
     const oppDirStr = INDEX_TO_DIR[OPPOSITE_FACING[dirIdx]];
@@ -192,19 +222,6 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
             delete newHex.redSpot;
           } else {
             newHex.redSpot = selectedSpotNum;
-          }
-        } else if (activeTool === 'entryExit') {
-          if (!newHex.isEntry && !newHex.isExit) {
-            newHex.isEntry = true;
-            newHex.isExit = false;
-            updatedMission.playerDeployment.hex = { col: tile.coord.q, row: tile.coord.r };
-            updatedMission.playerDeployment.facing = selectedSpotFacing;
-          } else if (newHex.isEntry) {
-            newHex.isEntry = false;
-            newHex.isExit = true;
-            updatedMission.victoryConditions.exitHex = { col: tile.coord.q, row: tile.coord.r };
-          } else {
-            newHex.isExit = false;
           }
         }
       }
@@ -401,7 +418,8 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
                   { id: 'road', label: '🛣️ Carretera' },
                   { id: 'blackSpot', label: '🎯 Spot Negro' },
                   { id: 'redSpot', label: '🔴 Spot Rojo' },
-                  { id: 'entryExit', label: '🚪 Entr/Sal' },
+                  { id: 'entry', label: '📍 Entrada Sherman' },
+                  { id: 'exit', label: '🏁 Salida Misión' },
                 ] as const
               ).map((tool) => (
                 <button
@@ -521,11 +539,64 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
             </div>
           )}
 
-          {activeTool === 'entryExit' && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-slate-300">Entrada / Salida:</h4>
+          {activeTool === 'entry' && (
+            <div className="space-y-3">
+              <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                <div className="text-[11px] font-bold text-amber-400">📍 Entrada del Sherman:</div>
+                <div className="text-slate-200 text-xs mt-1">
+                  Posición:{' '}
+                  <strong className="text-emerald-400">
+                    ({(mission.playerDeployment.hex as any)?.col ?? (mission.playerDeployment.hex as any)?.q ?? 0},{' '}
+                    {(mission.playerDeployment.hex as any)?.row ?? (mission.playerDeployment.hex as any)?.r ?? 0})
+                  </strong>
+                </div>
+                <div className="text-slate-400 text-[10px] mt-0.5">
+                  Orientación: <strong>{INDEX_TO_DIR[mission.playerDeployment.facing]} ({mission.playerDeployment.facing})</strong>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-slate-300 mb-1">Encaramiento Inicial del Sherman:</h4>
+                <div className="grid grid-cols-3 gap-1">
+                  {([0, 1, 2, 3, 4, 5] as Facing[]).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => {
+                        setSelectedSpotFacing(f);
+                        const updated = JSON.parse(JSON.stringify(mission)) as MissionJSON;
+                        updated.playerDeployment.facing = f;
+                        setMission(updated);
+                      }}
+                      className={`py-1.5 rounded font-mono font-bold text-center border ${mission.playerDeployment.facing === f ? 'bg-amber-600 border-amber-300 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'}`}
+                    >
+                      {INDEX_TO_DIR[f]} ({f})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <p className="text-[11px] text-slate-400">
-                Haz clic en un hexágono para alternar entre <b>ENTRADA</b> del Sherman (actualiza las coordenadas de despliegue y su orientación al valor seleccionado en Spots) y <b>SALIDA</b>.
+                Haz clic en cualquier casilla del mapa para <b>colocar o mover</b> la Entrada del Sherman a esa posición.
+              </p>
+            </div>
+          )}
+
+          {activeTool === 'exit' && (
+            <div className="space-y-3">
+              <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                <div className="text-[11px] font-bold text-emerald-400">🏁 Salida de la Misión:</div>
+                <div className="text-slate-200 text-xs mt-1">
+                  Posición:{' '}
+                  <strong className="text-emerald-400">
+                    {mission.victoryConditions.exitHex
+                      ? `(${(mission.victoryConditions.exitHex as any).col ?? (mission.victoryConditions.exitHex as any).q}, ${(mission.victoryConditions.exitHex as any).row ?? (mission.victoryConditions.exitHex as any).r})`
+                      : 'No asignada'}
+                  </strong>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400">
+                Haz clic en cualquier casilla del mapa para <b>colocar o mover</b> la casilla de Salida (flecha roja) hacia esa posición.
               </p>
             </div>
           )}
