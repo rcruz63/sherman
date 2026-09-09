@@ -137,11 +137,70 @@ describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
       expect(gameEnd.isGameOver).toBe(true);
       expect(gameEnd.isVictory).toBe(true);
     });
+
+    it('prompts 3 deployment rolls for enemy tanks in Mission 12 and deploys Sherman to fixed entry hex', async () => {
+      const prompts: any[] = [];
+      useGameStore.setState({
+        diceModePreference: 'auto',
+        promptDiceRoll: async (prompt) => {
+          prompts.push(prompt);
+          return { rolls: [1], total: 1, isManual: false };
+        },
+      });
+
+      await useGameStore.getState().startNewSingleMission(12);
+
+      // In Mission 12: Sherman is at fixed hex (no deployment roll needed), 3 enemy tanks (1 Tiger, 2 Panzer III) roll
+      expect(prompts).toHaveLength(3);
+      expect(prompts[0].title).toContain('TIGER');
+      expect(prompts[1].title).toContain('PANZER_III');
+      expect(prompts[2].title).toContain('PANZER_III');
+
+      const boardState = useGameStore.getState().boardState!;
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+      expect(boardState.sherman.facing).toBe(0);
+      expect(boardState.enemyTanks).toHaveLength(3);
+      const shermanKey = `${boardState.sherman.coord.q},${boardState.sherman.coord.r}`;
+      expect(boardState.enemyTanks.every((t) => `${t.coord.q},${t.coord.r}` !== shermanKey)).toBe(true);
+    });
+
+    it('prompts 4 deployment rolls in Mission 11 and guarantees Sherman and Tiger never share a spot', async () => {
+      const prompts: any[] = [];
+      const rollValues = [4, 4, 6, 5];
+      let rollIndex = 0;
+
+      useGameStore.setState({
+        diceModePreference: 'auto',
+        promptDiceRoll: async (prompt) => {
+          prompts.push(prompt);
+          const roll = rollValues[rollIndex++] || 1;
+          return { rolls: [roll], total: roll, isManual: false };
+        },
+      });
+
+      await useGameStore.getState().startNewSingleMission(11);
+
+      // Exactly 4 prompts: 1 for Sherman, 1 for Tiger, 1 for Panzer IV, 1 for Panzer III
+      expect(prompts).toHaveLength(4);
+      expect(prompts[0].title).toContain('Sherman');
+      expect(prompts[1].title).toContain('TIGER');
+      expect(prompts[2].title).toContain('PANZER_IV');
+      expect(prompts[3].title).toContain('PANZER_III');
+
+      const boardState = useGameStore.getState().boardState!;
+      const shermanCoordKey = `${boardState.sherman.coord.q},${boardState.sherman.coord.r}`;
+      const tiger = boardState.enemyTanks.find((t) => t.type === 'tiger')!;
+      const tigerCoordKey = `${tiger.coord.q},${tiger.coord.r}`;
+
+      // Sherman and Tiger must NEVER share the same spot!
+      expect(tigerCoordKey).not.toBe(shermanCoordKey);
+      expect(boardState.enemyTanks.every((t) => `${t.coord.q},${t.coord.r}` !== shermanCoordKey)).toBe(true);
+    });
   });
 
   describe('Mission 13 - Rescate', () => {
-    beforeEach(() => {
-      useGameStore.getState().loadMission(mission13);
+    beforeEach(async () => {
+      await useGameStore.getState().loadMission(mission13, { skipDeploymentPrompt: true });
     });
 
     it('initializes disabledSherman special rule at hex (1,3)', () => {

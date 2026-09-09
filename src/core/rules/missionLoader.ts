@@ -141,6 +141,29 @@ export function extractMissionSpawnPoints(missionData: MissionJSON): {
     });
   }
 
+  if (missionData.spawnPoints?.blackNumbers) {
+    missionData.spawnPoints.blackNumbers.forEach((sp) => {
+      if (!blackNumbers.some((b) => b.number === sp.number)) {
+        blackNumbers.push({
+          number: sp.number,
+          hex: parseAxialCoord(sp.hex),
+          facing: sp.facing,
+        });
+      }
+    });
+  }
+
+  if (missionData.spawnPoints?.redNumbers) {
+    missionData.spawnPoints.redNumbers.forEach((sp) => {
+      if (!redNumbers.some((r) => r.number === sp.number)) {
+        redNumbers.push({
+          number: sp.number,
+          hex: parseAxialCoord(sp.hex),
+        });
+      }
+    });
+  }
+
   return { blackNumbers, redNumbers };
 }
 
@@ -365,6 +388,10 @@ export function loadMissionState(
   } else {
     shermanCoord = parseAxialCoord(missionData.playerDeployment.hex);
     shermanFacing = missionData.playerDeployment.facing ?? 0;
+    const matchingBlackSpot = blackNumbers.find((b) => b.hex.q === shermanCoord.q && b.hex.r === shermanCoord.r);
+    if (matchingBlackSpot) {
+      usedBlackNumbers.add(matchingBlackSpot.number);
+    }
   }
 
   const shermanState: ShermanState = {
@@ -402,8 +429,12 @@ export function loadMissionState(
 
         if (options?.selectedBlackSpawns && spawnIndex < options.selectedBlackSpawns.length) {
           const targetNum = options.selectedBlackSpawns[spawnIndex];
-          sp = blackNumbers.find((s) => s.number === targetNum);
-        } else {
+          if (!usedBlackNumbers.has(targetNum)) {
+            sp = blackNumbers.find((s) => s.number === targetNum);
+          }
+        }
+
+        if (!sp) {
           sp = availableBlackSpawns.find((s) => {
             if (usedBlackNumbers.has(s.number)) return false;
             if (group.allowedNumbers && group.allowedNumbers.length > 0) {

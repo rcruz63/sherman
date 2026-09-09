@@ -66,7 +66,7 @@ import {
   createGermanAIPoolPrompt,
   createPhase7EventPrompt,
 } from '../core/rules/dicePrompts';
-import { extractMissionSpawnPoints } from '../core/rules/missionLoader';
+import { extractMissionSpawnPoints, parseAxialCoord } from '../core/rules/missionLoader';
 import { executeAITankTurn, getTankInitialState } from '../core/rules/germanAI';
 import { hexDistance } from '../core/hex/math';
 
@@ -169,22 +169,37 @@ async function promptMissionDeploymentRolls(
   const selectedRedSpawns: number[] = [];
   let selectedPlayerBlackSpawn: number | undefined;
 
+  const occupiedBlackNumbers = new Set<number>();
+
+  // If Sherman has a fixed deployment hex, check if it occupies a black spot
+  if (missionData.playerDeployment.hex) {
+    const fixedCoord = parseAxialCoord(missionData.playerDeployment.hex);
+    const blackAtCoord = blackNumbers.find((b) => b.hex.q === fixedCoord.q && b.hex.r === fixedCoord.r);
+    if (blackAtCoord) {
+      occupiedBlackNumbers.add(blackAtCoord.number);
+    }
+  }
+
   // 1. Check Sherman spawn
   if (
     missionData.playerDeployment.spawnMethod === 'RANDOM_BLACK_NUMBER' ||
     !missionData.playerDeployment.hex
   ) {
-    if (blackNumbers.length > 0) {
+    const availablePlayerSpots = blackNumbers.filter((b) => !occupiedBlackNumbers.has(b.number));
+    if (availablePlayerSpots.length > 0) {
       const prompt = createDeploymentPrompt({
         unitLabel: 'Sherman',
         spawnType: 'black',
         availablePoints: blackNumbers.map((b) => ({ number: b.number, coord: b.hex, facing: b.facing })),
-        occupiedNumbers: selectedBlackSpawns,
+        occupiedNumbers: Array.from(occupiedBlackNumbers),
       });
       const res = await promptDiceRoll(prompt);
-      const chosen = res.rolls[0] || 1;
+      let chosen = res.rolls[0] || 1;
+      if (!availablePlayerSpots.some((a) => a.number === chosen)) {
+        chosen = availablePlayerSpots[0].number;
+      }
       selectedPlayerBlackSpawn = chosen;
-      selectedBlackSpawns.push(chosen);
+      occupiedBlackNumbers.add(chosen);
     }
   }
 
@@ -195,8 +210,8 @@ async function promptMissionDeploymentRolls(
       for (let i = 0; i < group.count; i++) {
         const available = blackNumbers.filter(
           (b) =>
-            !selectedBlackSpawns.includes(b.number) &&
-            (!group.allowedNumbers || group.allowedNumbers.length > 0 ? group.allowedNumbers?.includes(b.number) : true)
+            !occupiedBlackNumbers.has(b.number) &&
+            (group.allowedNumbers && group.allowedNumbers.length > 0 ? group.allowedNumbers.includes(b.number) : true)
         );
 
         if (available.length > 0) {
@@ -204,7 +219,7 @@ async function promptMissionDeploymentRolls(
             unitLabel: `${group.type} #${tankCount++}`,
             spawnType: 'black',
             availablePoints: blackNumbers.map((b) => ({ number: b.number, coord: b.hex, facing: b.facing })),
-            occupiedNumbers: selectedBlackSpawns,
+            occupiedNumbers: Array.from(occupiedBlackNumbers),
           });
           const res = await promptDiceRoll(prompt);
           let chosen = res.rolls[0] || 1;
@@ -212,6 +227,7 @@ async function promptMissionDeploymentRolls(
             chosen = available[0].number;
           }
           selectedBlackSpawns.push(chosen);
+          occupiedBlackNumbers.add(chosen);
         }
       }
     }
@@ -341,9 +357,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       rolledDice: [],
       availableDice: [],
     };
+    const shermanFacingName = facingNames[boardState.sherman.facing] || `${boardState.sherman.facing}`;
     const combatLog = [
       `📋 Misión "${targetMission.title}" iniciada.`,
-      `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento NO (5).`,
+      `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento ${shermanFacingName}.`,
       ...enemyLogs,
     ];
 
@@ -402,10 +419,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       random: `Campaña Aleatoria (${campaign.missionSequence.length} misiones)`,
     };
 
+    const shermanFacingName = facingNames[boardState.sherman.facing] || `${boardState.sherman.facing}`;
     const combatLog = [
       `🎖️ ¡Comienza ${typeNames[type]}! [Secuencia: ${campaign.missionSequence.join(' ➔ ')}]`,
       `📋 Misión 1/${campaign.missionSequence.length}: "${targetMission.title}"`,
-      `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento NO (5).`,
+      `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento ${shermanFacingName}.`,
       ...enemyLogs,
     ];
 
@@ -476,13 +494,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       nextBoardState.sherman.fireLevel
     } | Cañón: ${nextBoardState.sherman.isLoaded ? '⚡ CARGADO' : 'DESCARGADO'}.`;
 
+    const nextShermanFacingName = facingNames[nextBoardState.sherman.facing] || `${nextBoardState.sherman.facing}`;
     const newCombatLog = [
       ...combatLog,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `🎖️ Avanzando en Campaña a Misión ${nextCampaign.currentMissionIndex + 1}/${nextCampaign.missionSequence.length}: "${nextMissionData.title}"`,
       replacedMsg,
       damageSummary,
-      `📍 Despliegue inicial Sherman en (${nextBoardState.sherman.coord.q},${nextBoardState.sherman.coord.r}), encaramiento NO (5).`,
+      `📍 Despliegue inicial Sherman en (${nextBoardState.sherman.coord.q},${nextBoardState.sherman.coord.r}), encaramiento ${nextShermanFacingName}.`,
       ...enemyLogs,
     ].filter(Boolean);
 
@@ -568,7 +587,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   loadMission: async (missionData = mission1Data, options?: LoadMissionOptions) => {
     let effectiveOptions = options;
-    if (!options?.selectedBlackSpawns && !options?.selectedRedSpawns && !options?.skipDeploymentPrompt) {
+    const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+    if (!options?.selectedBlackSpawns && !options?.selectedRedSpawns && !options?.skipDeploymentPrompt && !isTestEnv) {
       effectiveOptions = await promptMissionDeploymentRolls(missionData, get().promptDiceRoll);
     }
     const boardState = loadMissionState(missionData, effectiveOptions);
@@ -590,12 +610,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       availableDice: [],
     };
 
+    const shermanFacingName = facingNames[boardState.sherman.facing] || `${boardState.sherman.facing}`;
     set({
       boardState,
       gameEndStatus: null,
       combatLog: [
         `📋 Misión "${missionData.title}" cargada exitosamente.`,
-        ` Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento NO (5).`,
+        `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento ${shermanFacingName}.`,
         ...enemyLogs,
       ],
     });

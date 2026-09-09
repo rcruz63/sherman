@@ -11,7 +11,7 @@ import {
   SaveSlotData,
 } from '../../types/game';
 import { missions } from '../../data/missions';
-import { loadMissionState } from '../rules/missionLoader';
+import { loadMissionState, extractMissionSpawnPoints } from '../rules/missionLoader';
 
 const SLOTS_INDEX_KEY = 'sherman_save_slots_index_v2';
 const ACTIVE_SLOT_KEY = 'sherman_active_slot_id_v2';
@@ -35,9 +35,17 @@ function buildShermanMetadataSummary(sherman: BoardState['sherman']): SaveSlotMe
 }
 
 /**
+ * Check if localStorage is available (browser environment vs test/node)
+ */
+function isStorageAvailable(): boolean {
+  return typeof localStorage !== 'undefined';
+}
+
+/**
  * Lists all existing save slots metadata, migrating legacy saves if necessary
  */
 export function listSaveSlots(): SaveSlotMetadata[] {
+  if (!isStorageAvailable()) return [];
   try {
     const indexJson = localStorage.getItem(SLOTS_INDEX_KEY);
     if (indexJson) {
@@ -110,6 +118,7 @@ export function listSaveSlots(): SaveSlotMetadata[] {
  * Gets the ID of the currently active save slot
  */
 export function getActiveSlotId(): string | null {
+  if (!isStorageAvailable()) return null;
   try {
     return localStorage.getItem(ACTIVE_SLOT_KEY);
   } catch {
@@ -121,6 +130,7 @@ export function getActiveSlotId(): string | null {
  * Sets the ID of the currently active save slot
  */
 export function setActiveSlotId(slotId: string): void {
+  if (!isStorageAvailable()) return;
   try {
     localStorage.setItem(ACTIVE_SLOT_KEY, slotId);
   } catch (err) {
@@ -141,6 +151,7 @@ export function saveGameToSlot(
     campaignState?: CampaignProgress | null;
   }
 ): boolean {
+  if (!isStorageAvailable()) return false;
   try {
     const { mode, boardState, combatLog, campaignState } = options;
     const missionId = boardState.missionData?.id ?? 1;
@@ -224,6 +235,7 @@ export function loadGameFromSlot(slotId: string): {
   combatLog: (string | LogEntry)[];
   campaignState: CampaignProgress | null;
 } | null {
+  if (!isStorageAvailable()) return null;
   try {
     const raw = localStorage.getItem(`${SLOT_DATA_PREFIX}${slotId}`);
     if (!raw) return null;
@@ -267,6 +279,39 @@ export function loadGameFromSlot(slotId: string): {
               else if (raw === 'woods') tile.terrain = 'woods';
               else if (raw === 'water') tile.terrain = 'water';
               else if (raw === 'building') tile.terrain = 'building';
+            }
+          });
+        }
+      }
+    }
+
+    // Sanitize any unit coordinate collision (e.g. legacy save where Sherman and an enemy tank shared a spawn)
+    if (parsed.boardState.missionData?.id && parsed.boardState.enemyTanks && parsed.boardState.sherman) {
+      const shermanKey = `${parsed.boardState.sherman.coord.q},${parsed.boardState.sherman.coord.r}`;
+      const hasCollision = parsed.boardState.enemyTanks.some(
+        (t) => `${t.coord.q},${t.coord.r}` === shermanKey
+      );
+      if (hasCollision) {
+        const missionDef = missions.find((m) => m.id === parsed.boardState.missionData?.id);
+        if (missionDef) {
+          const { blackNumbers } = extractMissionSpawnPoints(missionDef);
+          const occupiedKeys = new Set<string>();
+          occupiedKeys.add(shermanKey);
+          parsed.boardState.enemyTanks.forEach((t) => {
+            if (`${t.coord.q},${t.coord.r}` !== shermanKey) {
+              occupiedKeys.add(`${t.coord.q},${t.coord.r}`);
+            }
+          });
+
+          parsed.boardState.enemyTanks.forEach((t) => {
+            if (`${t.coord.q},${t.coord.r}` === shermanKey) {
+              const freeSp = blackNumbers.find((b) => !occupiedKeys.has(`${b.hex.q},${b.hex.r}`));
+              if (freeSp) {
+                t.coord = { ...freeSp.hex };
+                t.facing = freeSp.facing;
+                t.spawnNumber = freeSp.number;
+                occupiedKeys.add(`${freeSp.hex.q},${freeSp.hex.r}`);
+              }
             }
           });
         }
