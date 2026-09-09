@@ -13,12 +13,33 @@ const mission13 = mission13Raw as MissionJSON;
 
 describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
   describe('Mission 11 - Gladiadores de Acero', () => {
-    it('deploys 3 enemy tanks (Tiger, Panzer IV, Panzer III)', () => {
-      const boardState = loadMissionState(mission11);
+    it('initializes 36 hexes and deploys Sherman to a random black spot matching its facing', () => {
+      // Test deterministic player black spawn #4 (hex 3,6 with facing 0)
+      const boardState = loadMissionState(mission11, { selectedPlayerBlackSpawn: 4 });
+
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+      expect(boardState.sherman.facing).toBe(0);
+
+      // Verify enemy tanks spawned on remaining black spots without collision with Sherman
       expect(boardState.enemyTanks).toHaveLength(3);
+      expect(boardState.enemyTanks.every((t) => t.spawnNumber !== 4)).toBe(true);
       expect(boardState.enemyTanks.some((t) => t.type === 'tiger')).toBe(true);
       expect(boardState.enemyTanks.some((t) => t.type === 'panzerIV')).toBe(true);
       expect(boardState.enemyTanks.some((t) => t.type === 'panzerIII')).toBe(true);
+    });
+
+    it('spawns Sherman and enemy tanks on distinct black numbers across randomized runs', () => {
+      for (let i = 0; i < 20; i++) {
+        const boardState = loadMissionState(mission11);
+        const playerCoordKey = `${boardState.sherman.coord.q},${boardState.sherman.coord.r}`;
+        const enemyCoords = boardState.enemyTanks.map((t) => `${t.coord.q},${t.coord.r}`);
+
+        // Sherman never collides with enemy tanks
+        expect(enemyCoords).not.toContain(playerCoordKey);
+        // All 3 enemy tanks have distinct coordinates
+        expect(new Set(enemyCoords).size).toBe(3);
+      }
     });
 
     it('handles NO_EVENT (roll 6-7) in Phase 7 without applying actions and advances turn', () => {
@@ -37,9 +58,6 @@ describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
     it('achieves VICTORY when all enemy tanks are destroyed without requiring map exit', () => {
       const boardState = loadMissionState(mission11);
 
-      // Sherman remains at starting hex (1,8)
-      expect(boardState.sherman.coord).toEqual({ q: 1, r: 8 });
-
       // Destroy all enemy tanks
       boardState.enemyTanks.forEach((t) => (t.status = 'destroyed'));
 
@@ -48,6 +66,34 @@ describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
       expect(gameEnd.isGameOver).toBe(true);
       expect(gameEnd.isVictory).toBe(true);
       expect(gameEnd.message).toContain('VICTORIA TÁCTICA');
+    });
+
+    it('verifies Mission 11 dice pool and canonical event table', () => {
+      const dice = mission11.shermanDicePool;
+      expect(dice.maneuver).toEqual({ road: 2, field: 1, mud: 0 });
+      expect(dice.attack).toEqual({ road: 2, field: 2, mud: 1 });
+      expect(dice.misc).toEqual({ road: 1, field: 2, mud: 1 });
+
+      const events = mission11.endOfTurnEvents;
+      expect(events.find((e) => 2 >= e.rollMin && 2 <= e.rollMax)?.type).toBe('MINES');
+      expect(events.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('NO_EVENT');
+      expect(events.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(events.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
+      expect(events.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
+    });
+
+    it('supports customizable difficulty scaling up to 5 enemy tanks on remaining black spots', () => {
+      const customMission11 = JSON.parse(JSON.stringify(mission11)) as MissionJSON;
+      customMission11.enemyDeployment.tanks = [
+        { type: 'TIGER', spawnMethod: 'RANDOM_UNIQUE_BLACK_NUMBERS', count: 2 },
+        { type: 'PANZER_IV', spawnMethod: 'RANDOM_UNIQUE_BLACK_NUMBERS', count: 2 },
+        { type: 'PANZER_III', spawnMethod: 'RANDOM_UNIQUE_BLACK_NUMBERS', count: 1 },
+      ];
+
+      const boardState = loadMissionState(customMission11, { selectedPlayerBlackSpawn: 1 });
+      expect(boardState.enemyTanks).toHaveLength(5);
+      expect(boardState.enemyTanks.every((t) => t.spawnNumber !== 1)).toBe(true);
+      expect(new Set(boardState.enemyTanks.map((t) => t.spawnNumber)).size).toBe(5);
     });
   });
 

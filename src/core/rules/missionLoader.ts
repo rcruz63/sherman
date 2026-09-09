@@ -84,6 +84,7 @@ export function resolveMissionEvent(events: EventRule[], roll: number): EventRul
 export interface LoadMissionOptions {
   selectedBlackSpawns?: number[]; // Fixed spawn numbers for deterministic testing/replays
   selectedRedSpawns?: number[]; // Fixed red spawn numbers for deterministic testing/replays
+  selectedPlayerBlackSpawn?: number; // Fixed black spawn number for Sherman in missions with RANDOM_BLACK_NUMBER
 }
 
 export const DIR_STRING_MAP: Record<string, Facing> = {
@@ -301,11 +302,39 @@ export function loadMissionState(
     };
   });
 
-  const shermanCoord = parseAxialCoord(missionData.playerDeployment.hex);
+  const usedBlackNumbers = new Set<number>();
+  let shermanCoord: AxialCoord;
+  let shermanFacing: Facing;
+
+  const isRandomPlayerSpawn =
+    missionData.playerDeployment.spawnMethod === 'RANDOM_BLACK_NUMBER' ||
+    !missionData.playerDeployment.hex;
+
+  if (isRandomPlayerSpawn && blackNumbers.length > 0) {
+    let playerSp: BlackSpawnPoint | undefined;
+    if (options?.selectedPlayerBlackSpawn !== undefined) {
+      playerSp = blackNumbers.find((b) => b.number === options.selectedPlayerBlackSpawn);
+    }
+    if (!playerSp) {
+      const randIdx = Math.floor(Math.random() * blackNumbers.length);
+      playerSp = blackNumbers[randIdx];
+    }
+    if (playerSp) {
+      shermanCoord = { ...playerSp.hex };
+      shermanFacing = playerSp.facing;
+      usedBlackNumbers.add(playerSp.number);
+    } else {
+      shermanCoord = { q: 0, r: 0 };
+      shermanFacing = 0;
+    }
+  } else {
+    shermanCoord = parseAxialCoord(missionData.playerDeployment.hex);
+    shermanFacing = missionData.playerDeployment.facing ?? 0;
+  }
 
   const shermanState: ShermanState = {
     coord: shermanCoord,
-    facing: missionData.playerDeployment.facing,
+    facing: shermanFacing,
     commanderPosition: 'unhatched', // Interior
     isLoaded: missionData.playerDeployment.initialStatus.loaded,
     fireLevel: missionData.playerDeployment.initialStatus.fireLevel,
@@ -319,7 +348,7 @@ export function loadMissionState(
   };
 
   // Process Enemy Tank Deployment
-  const availableBlackSpawns = [...blackNumbers];
+  const availableBlackSpawns = [...blackNumbers].filter((sp) => !usedBlackNumbers.has(sp.number));
   let spawnIndex = 0;
 
   if (!options?.selectedBlackSpawns) {
@@ -328,7 +357,6 @@ export function loadMissionState(
 
   const enemyTanks: EnemyTank[] = [];
   let tankIdCounter = 1;
-  const usedBlackNumbers = new Set<number>();
 
   if (missionData.enemyDeployment.tanks) {
     missionData.enemyDeployment.tanks.forEach((group) => {

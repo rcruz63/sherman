@@ -13,9 +13,8 @@ describe('All 13 Missions Terrain & Sherman Operations Dice Pools Verification',
 
       expect(startTile).toBeDefined();
 
-      // For Missions 1 to 5 and 7 to 13 (entry at road (5,4)):
-      // The entry hex should be road terrain
-      if (sherman.coord.q === 5 && sherman.coord.r === 4) {
+      // For missions with entry on a road hex
+      if (startTile!.isEntryHex && (sherman.coord.q === 5 && sherman.coord.r === 4)) {
         expect(startTile!.terrain).toBe('road');
       }
 

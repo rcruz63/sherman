@@ -606,7 +606,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
                   </strong>
                 </div>
                 <div className="text-slate-400 text-[10px] mt-0.5">
-                  Orientación: <strong>{INDEX_TO_DIR[mission.playerDeployment.facing]} ({mission.playerDeployment.facing})</strong>
+                  Orientación: <strong>{mission.playerDeployment.facing !== undefined ? `${INDEX_TO_DIR[mission.playerDeployment.facing]} (${mission.playerDeployment.facing})` : 'Aleatoria (según spot)'}</strong>
                 </div>
               </div>
 
@@ -622,7 +622,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({ isOpen, onClose 
                         updated.playerDeployment.facing = f;
                         setMission(updated);
                       }}
-                      className={`py-1.5 rounded font-mono font-bold text-center border ${mission.playerDeployment.facing === f ? 'bg-amber-600 border-amber-300 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'}`}
+                      className={`py-1.5 rounded font-mono font-bold text-center border ${(mission.playerDeployment.facing ?? 0) === f ? 'bg-amber-600 border-amber-300 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'}`}
                     >
                       {INDEX_TO_DIR[f]} ({f})
                     </button>

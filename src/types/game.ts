@@ -201,8 +201,9 @@ export interface InitialCrewConfig {
 
 export interface PlayerDeploymentConfig {
   unit: string;
-  hex: AxialCoord | { col: number; row: number };
-  facing: Facing;
+  spawnMethod?: 'FIXED' | 'RANDOM_BLACK_NUMBER' | string;
+  hex?: AxialCoord | { col: number; row: number };
+  facing?: Facing;
   initialStatus: InitialShermanStatus;
   crew: InitialCrewConfig[];
 }
