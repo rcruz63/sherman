@@ -378,11 +378,12 @@
 ### Eventos de Fin de Turno (Fase 7 - 2d6)
 | 2d6 | Evento | Resolución |
 | :---: | :--- | :--- |
-| **2-4** | ¡Minas! | Si el Sherman está en Carretera y no Inmovilizado, impacto con Pen 0 vs BL 4. |
-| **5-6** | Infantería alemana | Tirar 1d6: Colocar infantería en hex rojo coincidente sin unidades. |
-| **7-9** | Ataque infantería | Infantería adyacente ataca a Distancia 1; ¿Daños? con Pen 1. |
-| **10** | Orden Comandante | Si Cte no está KIA: 1 acción gratis entre Cargar, Reparar o Extinguir. |
-| **11+** | Stuka | Cte Asomado derriba con 6+; si no, Stuka impacta con 8+ (Pen 1 vs BL 4). |
+| **2-5** | ¡Minas! | Si el Sherman está en Carretera y no Inmovilizado, impacto con Pen 0 vs BL 4. |
+| **6** | Fallo mecánico | El Sherman queda Inmovilizado si no lo estaba. |
+| **7-8** | Sin evento | No ocurre ningún evento durante este turno. |
+| **9** | Orden Comandante | Si Cte no está KIA: 1 acción gratis entre Cargar, Reparar o Extinguir. |
+| **10+** | Stuka | Cte Asomado derriba con 6+; si no, Stuka impacta con 8+ (Pen 1 vs BL 4). |
+| **11+** | Panzer III | Lanza 1d6: Coloca Panzer III en hex negro sin tanque encarando al número. No se repite la tirada. Si está ocupado no hay evento|
 
 ---
 

@@ -42,6 +42,7 @@ import {
 import { calculateHitDifficulty, resolveDamageCheck, resolveDamageEffect } from '../core/rules/combat';
 
 import { getDirectionBetween, hexNeighbor } from '../core/hex/math';
+import { OPPOSITE_FACING } from '../core/hex/mapValidator';
 import { createLogEntry, buildHitModifiersList, SECTOR_NAMES } from '../core/rules/logUtils';
 
 import {
@@ -113,7 +114,7 @@ export interface GameStoreState {
   duplicateSlot: (slotId: string, newName?: string) => string | null;
 
   // Store Actions
-  loadMission: (missionData?: MissionJSON, options?: LoadMissionOptions) => void;
+  loadMission: (missionData?: MissionJSON, options?: LoadMissionOptions) => Promise<void>;
   setCommanderPosition: (position: CommanderPosition) => void;
   setPhase: (phase: TurnPhase) => void;
   addLogMessage: (message: string | LogEntry) => void;
@@ -565,8 +566,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     return duplicateSaveSlot(slotId, newName);
   },
 
-  loadMission: (missionData = mission1Data, options?: LoadMissionOptions) => {
-    const boardState = loadMissionState(missionData, options);
+  loadMission: async (missionData = mission1Data, options?: LoadMissionOptions) => {
+    let effectiveOptions = options;
+    if (!options?.selectedBlackSpawns && !options?.selectedRedSpawns && !options?.skipDeploymentPrompt) {
+      effectiveOptions = await promptMissionDeploymentRolls(missionData, get().promptDiceRoll);
+    }
+    const boardState = loadMissionState(missionData, effectiveOptions);
 
     const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
     const enemyLogs = boardState.enemyTanks.map((t) => {
@@ -678,13 +683,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const tileKey = `${forwardCoord.q},${forwardCoord.r}`;
     const targetTile = boardState.tiles.get(tileKey);
 
-    if (!targetTile || targetTile.terrain === 'water' || targetTile.terrain === 'building') {
+    if (!targetTile || (targetTile.terrain === 'water' && !targetTile.isBridge) || targetTile.terrain === 'building') {
       addLogMessage(`⚠️ Movimiento bloqueado hacia (${forwardCoord.q},${forwardCoord.r}) por terreno infranqueable.`);
       return;
     }
 
-    // Bridge Special Rules Check (Mission 7)
+    // Bridge Rules Check
     const bridgeRule = boardState.missionData?.specialRules?.bridge;
+    const currentTile = boardState.tiles.get(`${currentCoord.q},${currentCoord.r}`);
     if (bridgeRule) {
       const isEnteringBridge = targetTile.isBridge || (forwardCoord.q === bridgeRule.hex.q && forwardCoord.r === bridgeRule.hex.r);
       const isLeavingBridge = currentCoord.q === bridgeRule.hex.q && currentCoord.r === bridgeRule.hex.r;
@@ -695,6 +701,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           const allowedDirs = isEnteringBridge ? bridgeRule.allowedEntryDirections : bridgeRule.allowedExitDirections;
           if (!allowedDirs.includes(moveDir)) {
             addLogMessage('⚠️ Movimiento bloqueado: El puente solo permite entradas y salidas por las conexiones de carretera.');
+            return;
+          }
+        }
+      }
+    } else if (targetTile.isBridge || currentTile?.isBridge) {
+      const moveDir = getDirectionBetween(currentCoord, forwardCoord);
+      if (moveDir !== null) {
+        if (targetTile.isBridge) {
+          const oppDir = OPPOSITE_FACING[moveDir];
+          if (!targetTile.roadEdges || !targetTile.roadEdges.includes(oppDir)) {
+            addLogMessage('⚠️ Movimiento bloqueado: El puente solo permite entrada por sus conexiones de carretera.');
+            return;
+          }
+        }
+        if (currentTile?.isBridge) {
+          if (!currentTile.roadEdges || !currentTile.roadEdges.includes(moveDir)) {
+            addLogMessage('⚠️ Movimiento bloqueado: El puente solo permite salida por sus conexiones de carretera.');
             return;
           }
         }
@@ -935,7 +958,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set((state) => {
       if (!state.boardState) return state;
       const firstSection: ShermanSectionType = order === 'MAV' ? 'maneuver' : 'attack';
-      const startTerrain = state.boardState.shermanOperations?.phaseStartTerrain || 'field';
+      const currentTile = state.boardState.tiles.get(
+        `${state.boardState.sherman.coord.q},${state.boardState.sherman.coord.r}`
+      );
+      const startTerrain = currentTile?.terrain || state.boardState.shermanOperations?.phaseStartTerrain || 'field';
       const updatedOps = {
         order,
         sectionIndex: 0,
@@ -1091,6 +1117,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         shermanOperations: state.boardState.shermanOperations
           ? {
               ...state.boardState.shermanOperations,
+              phaseStartTerrain: targetTile?.terrain || 'field',
               availableDice: nextAvailable,
             }
           : undefined,
@@ -1161,6 +1188,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         shermanOperations: state.boardState.shermanOperations
           ? {
               ...state.boardState.shermanOperations,
+              phaseStartTerrain: targetTile?.terrain || 'field',
               availableDice: nextAvailable,
             }
           : undefined,
@@ -1773,6 +1801,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
 
       const nextSection = sectionsOrder[nextIndex];
+      const currentTile = state.boardState.tiles.get(
+        `${state.boardState.sherman.coord.q},${state.boardState.sherman.coord.r}`
+      );
+      const effectiveTerrain = currentTile?.terrain || ops.phaseStartTerrain || 'field';
       const sectionLabels: Record<ShermanSectionType, string> = {
         maneuver: 'Maniobra',
         attack: 'Ataque',
@@ -1784,6 +1816,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           ...state.boardState,
           shermanOperations: {
             ...ops,
+            phaseStartTerrain: effectiveTerrain,
             sectionIndex: nextIndex,
             currentSection: nextSection,
             status: 'not_rolled',

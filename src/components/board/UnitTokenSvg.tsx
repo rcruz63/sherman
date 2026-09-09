@@ -125,6 +125,33 @@ export const EnemyTankTokenSvg: React.FC<EnemyTankTokenProps> = ({
   const isDestroyed = status === 'destroyed';
   const isDamaged = status === 'damaged';
 
+  const normalizedType = type.toLowerCase();
+  const isTiger = normalizedType.includes('tiger');
+  const isPanzerIII = normalizedType.includes('panzeriii') || normalizedType === 'panzer_iii';
+
+  // Display names and badge configuration
+  let displayName = 'PANZER IV';
+  let badgeWidth = 56;
+  let badgeStroke = '#ef4444';
+  let badgeTextColor = '#fca5a5';
+
+  if (isTiger) {
+    displayName = spawnNumber ? `TIGER I #${spawnNumber}` : 'TIGER I';
+    badgeWidth = spawnNumber ? 54 : 46;
+    badgeStroke = '#f59e0b';
+    badgeTextColor = '#fde68a';
+  } else if (isPanzerIII) {
+    displayName = spawnNumber ? `PANZER III #${spawnNumber}` : 'PANZER III';
+    badgeWidth = spawnNumber ? 64 : 56;
+    badgeStroke = '#38bdf8';
+    badgeTextColor = '#bae6fd';
+  } else {
+    displayName = spawnNumber ? `PANZER IV #${spawnNumber}` : 'PANZER IV';
+    badgeWidth = spawnNumber ? 60 : 54;
+    badgeStroke = '#ef4444';
+    badgeTextColor = '#fca5a5';
+  }
+
   return (
     <g
       className="cursor-pointer transition-transform duration-300 hover:scale-105"
@@ -147,37 +174,152 @@ export const EnemyTankTokenSvg: React.FC<EnemyTankTokenProps> = ({
       ) : (
         /* Tank Body Group rotated according to facing */
         <g transform={`rotate(${rotationDeg})`}>
-          {/* Tracks */}
-          <rect x={-13} y={-13} width={26} height={5} rx={1.5} fill="#0f172a" />
-          <rect x={-13} y={8} width={26} height={5} rx={1.5} fill="#0f172a" />
+          {isTiger ? (
+            /* ========================================================
+               TIGER I - HEAVY TANK (Robust, wide, 88mm + double muzzle brake)
+               ======================================================== */
+            <g>
+              {/* Heavy Tracks with tread notches */}
+              <rect x={-17} y={-16} width={34} height={7} rx={2} fill="#18181b" stroke="#3f3f46" strokeWidth={0.8} />
+              <line x1={-11} y1={-16} x2={-11} y2={-9} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={-5} y1={-16} x2={-5} y2={-9} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={1} y1={-16} x2={1} y2={-9} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={7} y1={-16} x2={7} y2={-9} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={13} y1={-16} x2={13} y2={-9} stroke="#52525b" strokeWidth={0.8} />
 
-          {/* Body */}
-          <rect
-            x={-11}
-            y={-9}
-            width={22}
-            height={18}
-            rx={2}
-            fill={isDamaged ? '#78350f' : '#991b1b'}
-            stroke={isDamaged ? '#f97316' : '#fca5a5'}
-            strokeWidth={1.5}
-          />
+              <rect x={-17} y={9} width={34} height={7} rx={2} fill="#18181b" stroke="#3f3f46" strokeWidth={0.8} />
+              <line x1={-11} y1={9} x2={-11} y2={16} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={-5} y1={9} x2={-5} y2={16} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={1} y1={9} x2={1} y2={16} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={7} y1={9} x2={7} y2={16} stroke="#52525b" strokeWidth={0.8} />
+              <line x1={13} y1={9} x2={13} y2={16} stroke="#52525b" strokeWidth={0.8} />
 
-          {/* Turret */}
-          <circle cx={0} cy={0} r={7} fill="#450a0a" stroke="#ef4444" strokeWidth={1.5} />
+              {/* Robust Boxy Hull */}
+              <rect
+                x={-15}
+                y={-11.5}
+                width={30}
+                height={23}
+                rx={2.5}
+                fill={isDamaged ? '#78350f' : '#881337'}
+                stroke={isDamaged ? '#f97316' : '#fda4af'}
+                strokeWidth={1.8}
+              />
+              {/* Front Glacis Plate Divider */}
+              <line x1={9} y1={-11.5} x2={9} y2={11.5} stroke={isDamaged ? '#ea580c' : '#fb7185'} strokeWidth={1} />
+              {/* Rear Exhaust Vents */}
+              <rect x={-14} y={-7} width={4.5} height={14} rx={1} fill="#4c0519" opacity={0.8} />
 
-          {/* Cannon */}
-          <rect x={0} y={-2} width={16} height={4} rx={1} fill="#dc2626" />
+              {/* Heavy Horseshoe Turret */}
+              <circle cx={0.5} cy={0} r={9.5} fill="#4c0519" stroke="#f43f5e" strokeWidth={1.8} />
+              {/* Commander Cupola */}
+              <circle cx={-2} cy={-5} r={3.2} fill="#18181b" stroke="#f43f5e" strokeWidth={1} />
 
-          {/* Facing Arrow */}
-          <polygon points="16,0 12,-4 12,4" fill="#ef4444" />
+              {/* 8.8 cm KwK 36 Heavy Cannon with Double-Baffle Muzzle Brake */}
+              <rect x={6.5} y={-4} width={4} height={8} rx={1} fill="#e11d48" />
+              <rect x={10.5} y={-2.5} width={15.5} height={5} rx={0.8} fill="#e11d48" stroke="#be123c" strokeWidth={0.5} />
+              {/* Double Muzzle Brake */}
+              <rect x={24} y={-4.5} width={4.5} height={9} rx={1} fill="#9f1239" stroke="#f43f5e" strokeWidth={1} />
+
+              {/* Heavy Facing Arrow */}
+              <polygon points="29.5,0 25.5,-4 25.5,4" fill="#fbbf24" />
+            </g>
+          ) : isPanzerIII ? (
+            /* ========================================================
+               PANZER III - LIGHT/MEDIUM TANK (Light, compact, 50mm gun)
+               ======================================================== */
+            <g>
+              {/* Sleek Light Tracks */}
+              <rect x={-11} y={-11} width={22} height={4.5} rx={1.5} fill="#0f172a" />
+              <rect x={-11} y={6.5} width={22} height={4.5} rx={1.5} fill="#0f172a" />
+
+              {/* Compact Hull */}
+              <rect
+                x={-9.5}
+                y={-8}
+                width={19}
+                height={16}
+                rx={2}
+                fill={isDamaged ? '#78350f' : '#991b1b'}
+                stroke={isDamaged ? '#f97316' : '#fca5a5'}
+                strokeWidth={1.2}
+              />
+              {/* Rear Engine Deck */}
+              <rect x={-8.5} y={-5} width={3.5} height={10} rx={0.5} fill="#450a0a" opacity={0.8} />
+
+              {/* Compact Turret */}
+              <circle cx={-0.5} cy={0} r={6} fill="#450a0a" stroke="#ef4444" strokeWidth={1.3} />
+              {/* Small Cupola */}
+              <circle cx={-2} cy={-2.5} r={2} fill="#0f172a" stroke="#ef4444" strokeWidth={0.8} />
+
+              {/* 5.0 cm KwK 39 Slender Cannon */}
+              <rect x={3.5} y={-2.5} width={3} height={5} rx={0.5} fill="#dc2626" />
+              <rect x={6.5} y={-1.5} width={9.5} height={3} rx={0.5} fill="#dc2626" />
+
+              {/* Facing Arrow */}
+              <polygon points="17,0 13.5,-3 13.5,3" fill="#ef4444" />
+            </g>
+          ) : (
+            /* ========================================================
+               PANZER IV - STANDARD MEDIUM TANK (Matches Sherman scale, 75mm)
+               ======================================================== */
+            <g>
+              {/* Standard Medium Tracks */}
+              <rect x={-14} y={-13} width={28} height={5.5} rx={1.8} fill="#0f172a" stroke="#334155" strokeWidth={0.5} />
+              <rect x={-14} y={7.5} width={28} height={5.5} rx={1.8} fill="#0f172a" stroke="#334155" strokeWidth={0.5} />
+
+              {/* Standard Chassis (24x19, same proportion as Sherman 24x20) */}
+              <rect
+                x={-12}
+                y={-9.5}
+                width={24}
+                height={19}
+                rx={2.5}
+                fill={isDamaged ? '#78350f' : '#991b1b'}
+                stroke={isDamaged ? '#f97316' : '#fca5a5'}
+                strokeWidth={1.5}
+              />
+              {/* Front Plate Accent */}
+              <line x1={7.5} y1={-9.5} x2={7.5} y2={9.5} stroke={isDamaged ? '#ea580c' : '#fca5a5'} strokeWidth={0.8} opacity={0.6} />
+
+              {/* Medium Turret with Cupola */}
+              <circle cx={-0.5} cy={0} r={7.5} fill="#450a0a" stroke="#ef4444" strokeWidth={1.5} />
+              <circle cx={-2.5} cy={-3.5} r={2.5} fill="#0f172a" stroke="#ef4444" strokeWidth={0.8} />
+
+              {/* 7.5 cm KwK 40 Cannon with Muzzle Brake */}
+              <rect x={4.5} y={-3} width={3.5} height={6} rx={0.6} fill="#dc2626" />
+              <rect x={8} y={-2} width={12} height={4} rx={0.6} fill="#dc2626" />
+              <rect x={18.5} y={-3} width={2.5} height={6} rx={0.6} fill="#7f1d1d" stroke="#ef4444" strokeWidth={0.6} />
+
+              {/* Facing Arrow */}
+              <polygon points="22.5,0 18.5,-3.8 18.5,3.8" fill="#ef4444" />
+            </g>
+          )}
         </g>
       )}
 
-      {/* Label Badge */}
-      <rect x={-20} y={-24} width={40} height={14} rx={4} fill="#0f172a" stroke="#ef4444" strokeWidth={1} opacity={0.9} />
-      <text x={0} y={-14} textAnchor="middle" fill="#fca5a5" fontSize="8" fontWeight="bold">
-        {type === 'panzerIV' ? `Pz IV #${spawnNumber || ''}` : type}
+      {/* Label Badge with Tank Name */}
+      <rect
+        x={-badgeWidth / 2}
+        y={-24}
+        width={badgeWidth}
+        height={13.5}
+        rx={3.5}
+        fill="#0f172a"
+        stroke={badgeStroke}
+        strokeWidth={1}
+        opacity={0.92}
+      />
+      <text
+        x={0}
+        y={-14.5}
+        textAnchor="middle"
+        fill={badgeTextColor}
+        fontSize={isPanzerIII && spawnNumber ? 6.8 : 7.2}
+        fontWeight="bold"
+        letterSpacing="0.2px"
+      >
+        {displayName}
       </text>
 
       {isHullDown && !isDestroyed && (

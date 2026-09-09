@@ -13,6 +13,7 @@ import {
   TerrainType,
 } from '../../types/game';
 import { getDirectionBetween, hexDistance, hexNeighbor } from '../hex/math';
+import { OPPOSITE_FACING } from '../hex/mapValidator';
 
 export type ShermanSectionType = 'maneuver' | 'attack' | 'misc';
 export type ShermanOperationsOrder = 'MAV' | 'AMV';
@@ -60,7 +61,7 @@ export function calculateSectionDice(
     const baseTerrainDice = dicePoolConfig
       ? dicePoolConfig.maneuver[effectiveTerrain]
       : effectiveTerrain === 'road' ? 2 : effectiveTerrain === 'field' ? 1 : 0;
-    explanation.push(`Terreno inicial (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
+    explanation.push(`Terreno (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
 
     let crewBonus = 0;
     if (sherman.crew.driver.status === 'active') {
@@ -91,7 +92,7 @@ export function calculateSectionDice(
     const baseTerrainDice = dicePoolConfig
       ? dicePoolConfig.attack[effectiveTerrain]
       : effectiveTerrain === 'mud' ? 1 : 2;
-    explanation.push(`Terreno inicial (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
+    explanation.push(`Terreno (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
 
     let crewBonus = 0;
     if (sherman.crew.gunner.status === 'active') {
@@ -122,7 +123,7 @@ export function calculateSectionDice(
   const baseTerrainDice = dicePoolConfig
     ? dicePoolConfig.misc[effectiveTerrain]
     : effectiveTerrain === 'field' ? 2 : 1;
-  explanation.push(`Terreno inicial (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
+  explanation.push(`Terreno (${effectiveTerrain.toUpperCase()}): ${baseTerrainDice} dado(s)`);
 
   let crewBonus = 0;
   if (sherman.crew.commander.status === 'active') {
@@ -164,7 +165,7 @@ export function validateManeuverMove(
     return { isValid: false, reason: 'Fuera de los límites del mapa.' };
   }
 
-  if (targetTile.terrain === 'water') {
+  if (targetTile.terrain === 'water' && !targetTile.isBridge) {
     return { isValid: false, reason: 'No se puede entrar en hexágonos de Agua.' };
   }
 
@@ -196,8 +197,9 @@ export function validateManeuverMove(
     return { isValid: false, reason: 'Hexágono ocupado por infantería enemiga.' };
   }
 
-  // Bridge Special Rules (Mission 7)
+  // Bridge Rules
   const bridgeRule = boardState.missionData?.specialRules?.bridge;
+  const currentTile = boardState.tiles.get(`${currentCoord.q},${currentCoord.r}`);
   if (bridgeRule) {
     const isEnteringBridge = targetTile.isBridge || (targetCoord.q === bridgeRule.hex.q && targetCoord.r === bridgeRule.hex.r);
     const isLeavingBridge = currentCoord.q === bridgeRule.hex.q && currentCoord.r === bridgeRule.hex.r;
@@ -208,6 +210,21 @@ export function validateManeuverMove(
         const allowedDirs = isEnteringBridge ? bridgeRule.allowedEntryDirections : bridgeRule.allowedExitDirections;
         if (!allowedDirs.includes(moveDir)) {
           return { isValid: false, reason: 'El puente solo permite entradas y salidas por las conexiones de carretera.' };
+        }
+      }
+    }
+  } else if (targetTile.isBridge || currentTile?.isBridge) {
+    const moveDir = getDirectionBetween(currentCoord, targetCoord);
+    if (moveDir !== null) {
+      if (targetTile.isBridge) {
+        const oppDir = OPPOSITE_FACING[moveDir];
+        if (!targetTile.roadEdges || !targetTile.roadEdges.includes(oppDir)) {
+          return { isValid: false, reason: 'El puente solo permite entrada por sus conexiones de carretera.' };
+        }
+      }
+      if (currentTile?.isBridge) {
+        if (!currentTile.roadEdges || !currentTile.roadEdges.includes(moveDir)) {
+          return { isValid: false, reason: 'El puente solo permite salida por sus conexiones de carretera.' };
         }
       }
     }

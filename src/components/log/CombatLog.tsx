@@ -4,31 +4,77 @@ import { LogEntry } from '../../types/game';
 
 export const CombatLog: React.FC = () => {
   const { combatLog, logVerbosity, setLogVerbosity, clearLog } = useGameStore();
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState<boolean>(false);
 
+  // Auto-scroll the inner container only — never scroll parent elements or the window!
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   }, [combatLog, logVerbosity, expandedIds]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const handleCopyLog = async () => {
+    if (combatLog.length === 0) return;
+    const textLines = combatLog.map((entryOrStr) => {
+      if (typeof entryOrStr === 'string') return entryOrStr;
+      let line = `[${entryOrStr.type.toUpperCase()}] ${entryOrStr.summary}`;
+      if (entryOrStr.detail) line += `\n  ${entryOrStr.detail}`;
+      if (entryOrStr.breakdown) {
+        const b = entryOrStr.breakdown;
+        if (b.diceRolls && b.diceRolls.length > 0) {
+          line += `\n  Dados: [${b.diceRolls.join(', ')}] = ${b.diceTotal ?? ''}`;
+        }
+        if (b.targetDifficulty !== undefined) {
+          line += ` | Dificultad: ${b.targetDifficulty}`;
+        }
+        if (b.modifiers && b.modifiers.length > 0) {
+          line += ` | Modif: ${b.modifiers.map((m) => `${m.label}: ${m.value}`).join(', ')}`;
+        }
+        if (b.damageEffect) {
+          line += ` | Efecto: ${b.damageEffect}`;
+        }
+      }
+      return line;
+    });
+
+    const fullText = textLines.join('\n');
+    try {
+      await navigator.clipboard.writeText(fullText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = fullText;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col h-full min-h-[280px]">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col h-full select-text">
       {/* Header with Title & Detail Mode Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-3">
-        <h2 className="text-xl font-bold text-blue-400 flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5 mb-2.5 shrink-0">
+        <h2 className="text-base font-bold text-blue-400 flex items-center gap-2 select-none">
           📜 Registro de Combate
         </h2>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Detail Mode Switcher */}
-          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800">
             <button
+              type="button"
               onClick={() => setLogVerbosity('compact')}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition ${
                 logVerbosity === 'compact'
                   ? 'bg-blue-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
@@ -37,20 +83,32 @@ export const CombatLog: React.FC = () => {
               Resumido
             </button>
             <button
+              type="button"
               onClick={() => setLogVerbosity('detailed')}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition ${
                 logVerbosity === 'detailed'
                   ? 'bg-amber-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              🔍 Detallado (Reglas)
+              🔍 Reglas
             </button>
           </div>
 
           <button
+            type="button"
+            onClick={handleCopyLog}
+            className="min-h-[30px] px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition flex items-center gap-1 border border-slate-700 cursor-pointer"
+            title="Copiar todo el registro de combate al portapapeles"
+          >
+            <span>{copied ? '✅' : '📋'}</span>
+            <span>{copied ? '¡Copiado!' : 'Copiar'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={clearLog}
-            className="min-h-[36px] px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-lg transition"
+            className="min-h-[30px] px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-lg transition cursor-pointer"
           >
             Limpiar
           </button>
@@ -58,9 +116,12 @@ export const CombatLog: React.FC = () => {
       </div>
 
       {/* Log Entry List */}
-      <div className="flex-1 bg-slate-950 rounded-xl p-3.5 border border-slate-800/80 font-mono text-xs text-slate-300 space-y-2 overflow-y-auto max-h-80">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 bg-slate-950 rounded-xl p-3 border border-slate-800/80 font-mono text-xs text-slate-300 space-y-1.5 overflow-y-auto select-text cursor-text max-h-60"
+      >
         {combatLog.length === 0 ? (
-          <div className="text-slate-500 italic text-center py-6">Sin registros de combate aún.</div>
+          <div className="text-slate-500 italic text-center py-6 select-none">Sin registros de combate aún.</div>
         ) : (
           combatLog.map((entryOrStr, idx) => {
             const entry: LogEntry =
@@ -165,7 +226,6 @@ export const CombatLog: React.FC = () => {
             );
           })
         )}
-        <div ref={logEndRef} />
       </div>
     </div>
   );

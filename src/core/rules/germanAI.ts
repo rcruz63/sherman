@@ -6,6 +6,7 @@
 import { AxialCoord, BoardState, EnemyTank, Facing } from '../../types/game';
 import { getDirectionBetween, hexDistance, hexNeighbor } from '../hex/math';
 import { getClosestDirection } from '../hex/facing';
+import { OPPOSITE_FACING } from '../hex/mapValidator';
 import {
   calculateHitDifficulty,
   resolveDamageCheck,
@@ -96,8 +97,8 @@ export function isHexAccessibleForGermanTank(
   const targetTile = boardState.tiles.get(`${targetCoord.q},${targetCoord.r}`);
   if (!targetTile) return false;
 
-  // Cannot enter woods or water
-  if (targetTile.terrain === 'woods' || targetTile.terrain === 'water') {
+  // Cannot enter woods or water (unless bridge)
+  if (targetTile.terrain === 'woods' || (targetTile.terrain === 'water' && !targetTile.isBridge)) {
     return false;
   }
 
@@ -130,8 +131,9 @@ export function isHexAccessibleForGermanTank(
     }
   }
 
-  // Mission 7 Bridge Rules
+  // Bridge Rules
   const bridgeRule = boardState.missionData?.specialRules?.bridge;
+  const currentTile = boardState.tiles.get(`${tank.coord.q},${tank.coord.r}`);
   if (bridgeRule) {
     const isEnteringBridge =
       targetTile.isBridge ||
@@ -145,6 +147,21 @@ export function isHexAccessibleForGermanTank(
           ? bridgeRule.allowedEntryDirections
           : bridgeRule.allowedExitDirections;
         if (!allowedDirs.includes(moveDir)) return false;
+      }
+    }
+  } else if (targetTile.isBridge || currentTile?.isBridge) {
+    const moveDir = getDirectionBetween(tank.coord, targetCoord);
+    if (moveDir !== null) {
+      if (targetTile.isBridge) {
+        const oppDir = OPPOSITE_FACING[moveDir];
+        if (!targetTile.roadEdges || !targetTile.roadEdges.includes(oppDir)) {
+          return false;
+        }
+      }
+      if (currentTile?.isBridge) {
+        if (!currentTile.roadEdges || !currentTile.roadEdges.includes(moveDir)) {
+          return false;
+        }
       }
     }
   }

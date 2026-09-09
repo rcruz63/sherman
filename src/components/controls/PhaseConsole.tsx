@@ -71,38 +71,41 @@ export const PhaseConsole: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-          🎲 Consola de Fases & Operaciones
-        </h2>
-        <button
-          onClick={nextPhase}
-          className="min-h-[48px] px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-md transition"
-        >
-          Siguiente Fase ➔
-        </button>
-      </div>
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+      {/* Sticky Top Bar: Header & Phase Stepper */}
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm -mx-2 px-2 pt-0 pb-2 border-b border-slate-800 space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-amber-400 flex items-center gap-2">
+            🎲 Consola de Fases
+          </h2>
+          <button
+            onClick={nextPhase}
+            className="min-h-[36px] px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Siguiente Fase ➔</span>
+          </button>
+        </div>
 
-      {/* Phase Stepper Selector */}
-      <div className="grid grid-cols-7 gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800">
-        {phasesList.map((p) => {
-          const isActive = p.id === currentPhase;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setPhase(p.id)}
-              className={`min-h-[44px] py-2 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center ${
-                isActive
-                  ? 'bg-amber-500 text-slate-950 shadow-lg font-extrabold'
-                  : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              }`}
-              title={p.desc}
-            >
-              <span>F{p.id}</span>
-            </button>
-          );
-        })}
+        {/* Phase Stepper Selector */}
+        <div className="grid grid-cols-7 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          {phasesList.map((p) => {
+            const isActive = p.id === currentPhase;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setPhase(p.id)}
+                className={`min-h-[32px] py-1 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center cursor-pointer ${
+                  isActive
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                    : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+                title={p.desc}
+              >
+                <span>F{p.id}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Phase 1: Sherman Smoke Cleanup */}

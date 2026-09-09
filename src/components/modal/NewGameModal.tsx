@@ -22,10 +22,11 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose }) =
 
   const selectedMissionData = missions.find((m) => m.id === selectedMissionId) || missions[0];
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    onClose();
     if (activeTab === 'single') {
       const name = customSlotName.trim() || `Misión ${selectedMissionId} - ${selectedMissionData.title}`;
-      startNewSingleMission(selectedMissionId, name);
+      await startNewSingleMission(selectedMissionId, name);
     } else {
       let options: { missionIds?: number[]; count?: number; slotName?: string } = {};
       if (campaignType === 'random') {
@@ -46,9 +47,8 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose }) =
       };
 
       options.slotName = customSlotName.trim() || defaultNames[campaignType];
-      startNewCampaign(campaignType, options);
+      await startNewCampaign(campaignType, options);
     }
-    onClose();
   };
 
   const toggleCustomMission = (id: number) => {

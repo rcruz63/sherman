@@ -85,6 +85,7 @@ export interface LoadMissionOptions {
   selectedBlackSpawns?: number[]; // Fixed spawn numbers for deterministic testing/replays
   selectedRedSpawns?: number[]; // Fixed red spawn numbers for deterministic testing/replays
   selectedPlayerBlackSpawn?: number; // Fixed black spawn number for Sherman in missions with RANDOM_BLACK_NUMBER
+  skipDeploymentPrompt?: boolean; // When true, skips interactive dice rolling prompts
 }
 
 export const DIR_STRING_MAP: Record<string, Facing> = {

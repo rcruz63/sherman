@@ -22,15 +22,15 @@ export const DiceTray: React.FC<DiceTrayProps> = ({
   const diceCount = diceValues.length;
   const totalSum = diceValues.reduce((sum, v) => sum + (v || 1), 0);
 
-  // Dynamic die sizing based on count and viewport
-  const dieSize = diceCount <= 2 ? 72 : diceCount === 3 ? 64 : 56;
+  // Dynamic die sizing based on count and viewport (compact for 1080p fit)
+  const dieSize = diceCount <= 2 ? 56 : diceCount === 3 ? 50 : 44;
 
   return (
-    <div className="bg-slate-950/90 rounded-3xl border border-slate-800/80 p-4 sm:p-6 shadow-inner flex flex-col items-center gap-5">
+    <div className="bg-slate-950/90 rounded-2xl border border-slate-800/80 p-3 sm:p-4 shadow-inner flex flex-col items-center gap-3">
       {/* Dice Container */}
-      <div className="w-full flex flex-wrap items-center justify-center gap-4 sm:gap-6 py-2 min-h-[120px]">
+      <div className="w-full flex flex-wrap items-center justify-center gap-3 sm:gap-5 py-1 min-h-[90px]">
         {diceValues.map((val, idx) => (
-          <div key={idx} className="flex flex-col items-center gap-2.5 animate-fade-in">
+          <div key={idx} className="flex flex-col items-center gap-1.5 animate-fade-in">
             {/* 3D Die */}
             <div className="relative group">
               <Die3D
@@ -46,7 +46,7 @@ export const DiceTray: React.FC<DiceTrayProps> = ({
                 }}
               />
               {diceCount > 1 && (
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center mt-1">
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center mt-0.5">
                   Dado {idx + 1}
                 </div>
               )}
@@ -54,7 +54,7 @@ export const DiceTray: React.FC<DiceTrayProps> = ({
 
             {/* Manual Value Selector per Die */}
             {mode === 'manual' && (
-              <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-md">
+              <div className="flex items-center gap-0.5 bg-slate-900/90 p-0.5 rounded-lg border border-slate-800 shadow-md">
                 {[1, 2, 3, 4, 5, 6].map((num) => {
                   const isSelected = val === num;
                   return (
@@ -63,9 +63,9 @@ export const DiceTray: React.FC<DiceTrayProps> = ({
                       type="button"
                       disabled={isRolling}
                       onClick={() => onDiceValueChange(idx, num)}
-                      className={`min-w-[28px] min-h-[32px] px-1.5 py-1 text-xs font-black rounded-lg transition-all ${
+                      className={`min-w-[22px] min-h-[26px] px-1 py-0.5 text-[11px] font-black rounded-md transition-all ${
                         isSelected
-                          ? 'bg-amber-500 text-slate-950 shadow-md scale-105 font-extrabold'
+                          ? 'bg-amber-500 text-slate-950 shadow scale-105 font-extrabold'
                           : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
                       }`}
                       title={`Seleccionar ${num} para el dado ${idx + 1}`}
@@ -81,19 +81,19 @@ export const DiceTray: React.FC<DiceTrayProps> = ({
       </div>
 
       {/* Tray Footer & Roll Controls */}
-      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-800/80">
+      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
         {/* Total Summary */}
-        <div className="flex items-center gap-2.5 text-xs text-slate-300">
-          <span className="text-slate-400 font-semibold uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-xs text-slate-300">
+          <span className="text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
             {diceCount === 1 ? 'Resultado:' : 'Tirada Total:'}
           </span>
-          <div className="flex items-center gap-1.5 font-mono">
+          <div className="flex items-center gap-1 font-mono">
             {diceCount > 1 && (
-              <span className="text-slate-400">
+              <span className="text-slate-400 text-xs">
                 [{diceValues.join(' + ')}] =
               </span>
             )}
-            <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-sm font-black shadow-sm">
+            <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black shadow-sm">
               {totalSum}
             </span>
           </div>
@@ -105,7 +105,7 @@ export const DiceTray: React.FC<DiceTrayProps> = ({
             type="button"
             disabled={isRolling}
             onClick={onRollAuto}
-            className="min-h-[44px] px-5 py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-900/30 transition transform active:scale-95 flex items-center gap-2 shrink-0 cursor-pointer"
+            className="min-h-[36px] px-4 py-1.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-md shadow-amber-900/30 transition transform active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
           >
             <span>🎲</span>
             <span>{isRolling ? 'Lanzando...' : 'Lanzar Dados'}</span>
@@ -114,9 +114,9 @@ export const DiceTray: React.FC<DiceTrayProps> = ({
 
         {/* Manual Mode Tip */}
         {mode === 'manual' && (
-          <div className="text-[11px] text-amber-400/90 flex items-center gap-1.5 font-medium">
+          <div className="text-[10px] text-amber-400/90 flex items-center gap-1 font-medium">
             <span>🎲</span>
-            <span>Modo Manual: Introduce los resultados que obtengas con tus dados físicos</span>
+            <span>Introduce el resultado de tus dados físicos</span>
           </div>
         )}
       </div>

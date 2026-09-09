@@ -111,7 +111,16 @@ describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
       }
     });
 
-    it('achieves VICTORY by destroying the Tiger I and exiting at (1,0)', () => {
+    it('initializes 36 hexes with bridges at (1,3) and (4,2)', () => {
+      const boardState = loadMissionState(mission12);
+      expect(boardState.tiles.size).toBe(36);
+      expect(boardState.tiles.get('1,3')?.isBridge).toBe(true);
+      expect(boardState.tiles.get('4,2')?.isBridge).toBe(true);
+      expect(boardState.sherman.coord).toEqual({ q: 3, r: 6 });
+      expect(boardState.sherman.facing).toBe(0);
+    });
+
+    it('achieves VICTORY by destroying the Tiger I and exiting at (2,0)', () => {
       const boardState = loadMissionState(mission12);
       const tiger = boardState.enemyTanks.find((t) => t.type === 'tiger')!;
 
@@ -121,8 +130,8 @@ describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
       // Before reaching exit, game is not over
       expect(checkGameEndConditions(boardState).isGameOver).toBe(false);
 
-      // Move Sherman to exit hex (1,0)
-      boardState.sherman.coord = { q: 1, r: 0 };
+      // Move Sherman to exit hex (2,0)
+      boardState.sherman.coord = { q: 2, r: 0 };
 
       const gameEnd = checkGameEndConditions(boardState);
       expect(gameEnd.isGameOver).toBe(true);
@@ -211,10 +220,11 @@ describe('Missions 11 to 13 Integration & Special Rules Verification', () => {
       expect(mission12.shermanDicePool.attack).toEqual({ road: 2, field: 2, mud: 1 });
       expect(mission12.shermanDicePool.misc).toEqual({ road: 1, field: 2, mud: 1 });
       expect(mission12.endOfTurnEvents.find((e) => 3 >= e.rollMin && 3 <= e.rollMax)?.type).toBe('MINES');
-      expect(mission12.endOfTurnEvents.find((e) => 5 >= e.rollMin && 5 <= e.rollMax)?.type).toBe('SPAWN_INFANTRY');
-      expect(mission12.endOfTurnEvents.find((e) => 8 >= e.rollMin && 8 <= e.rollMax)?.type).toBe('INFANTRY_ATTACK');
-      expect(mission12.endOfTurnEvents.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
-      expect(mission12.endOfTurnEvents.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('STUKA');
+      expect(mission12.endOfTurnEvents.find((e) => 6 >= e.rollMin && 6 <= e.rollMax)?.type).toBe('MECHANICAL_FAILURE');
+      expect(mission12.endOfTurnEvents.find((e) => 7 >= e.rollMin && 7 <= e.rollMax)?.type).toBe('NO_EVENT');
+      expect(mission12.endOfTurnEvents.find((e) => 9 >= e.rollMin && 9 <= e.rollMax)?.type).toBe('COMMANDER_ORDER');
+      expect(mission12.endOfTurnEvents.find((e) => 10 >= e.rollMin && 10 <= e.rollMax)?.type).toBe('STUKA');
+      expect(mission12.endOfTurnEvents.find((e) => 11 >= e.rollMin && 11 <= e.rollMax)?.type).toBe('SPAWN_PANZER_III');
 
       // Mission 13
       expect(mission13.shermanDicePool.maneuver).toEqual({ road: 2, field: 1, mud: 0 });

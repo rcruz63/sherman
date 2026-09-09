@@ -358,6 +358,19 @@ export function executePhase7(
   boardState.currentTurn += 1;
   boardState.currentPhase = TurnPhase.SHERMAN_SMOKE_CLEANUP;
 
+  const currentShermanTile = boardState.tiles.get(
+    `${boardState.sherman.coord.q},${boardState.sherman.coord.r}`
+  );
+  boardState.shermanOperations = {
+    order: null,
+    sectionIndex: 0,
+    phaseStartTerrain: currentShermanTile?.isBridge ? 'road' : (currentShermanTile?.terrain || 'field'),
+    currentSection: null,
+    status: 'order_selection',
+    rolledDice: [],
+    availableDice: [],
+  };
+
   return `Fase 7 Eventos (Tirada 2d6 = ${roll2d6} ➔ ${
     eventRule ? eventRule.type : 'SIN EVENTO'
   }): ${eventResolutionDetail} ➔ Avanzando a Turno ${boardState.currentTurn}.`;
