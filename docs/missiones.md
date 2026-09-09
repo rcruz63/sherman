@@ -316,7 +316,8 @@
 | :---: | :--- | :--- |
 | **2-5** | Infantería alemana | Tirar 1d6: Colocar infantería en hex rojo coincidente sin unidades. |
 | **6** | ¡Minas! | Si el Sherman está en Carretera y no Inmovilizado, impacto con Pen 0 vs BL 4. |
-| **7-9** | Ataque infantería | Infantería adyacente ataca a Distancia 1; ¿Daños? con Pen 1. |
+| **7-8** | Ataque infantería | Infantería adyacente ataca a Distancia 1; ¿Daños? con Pen 1. |
+| **9** | Orden Comandante | Si Cte no está KIA: 1 acción gratis entre Cargar, Reparar o Extinguir. |
 | **10** | Stuka | Cte Asomado derriba con 6+; si no, Stuka impacta con 8+ (Pen 1 vs BL 4). |
 | **11-12** | Panzer IV | Tirar 1d6: Colocar Panzer IV en hex negro libre encarando al número. |
 
@@ -326,8 +327,9 @@
 
 ### Objetivos y Despliegue
 - **Objetivos:** Destruir todos los tanques enemigos (1 Tiger I, 1 Panzer IV y 1 Panzer III). No requiere hexágono de salida.
-- **Despliegue Sherman:** Hexágono de entrada encarado según la flecha.
+- **Despliegue Sherman:** Coloca el Sherman en un hexágono numerado al azar, encarado hacia la cara que muestra el número en el hex.
 - **Despliegue Enemigo:** 1 Tiger I, 1 Panzer IV y 1 Panzer III en números negros al azar encarados hacia el número.
+> Nota: Puedes ajustar la dificultad al nivel que quieres cambiando los tanques alemanes iniciales. Para un desafío extremo, ¡enfréntate a 5 tanques!
 
 ### Unidades
 | Unidad | TAM | D | LD | LT | T | PEN |

@@ -39,8 +39,8 @@ import {
   executePhase7,
   GameEndStatus,
 } from '../core/rules/turnManager';
-import { runAllGermanActivations } from '../core/rules/germanAI';
 import { calculateHitDifficulty, resolveDamageCheck, resolveDamageEffect } from '../core/rules/combat';
+
 import { getDirectionBetween, hexNeighbor } from '../core/hex/math';
 import { createLogEntry, buildHitModifiersList, SECTOR_NAMES } from '../core/rules/logUtils';
 
@@ -52,6 +52,22 @@ import {
   ShermanSectionType,
   ShermanOperationsOrder,
 } from '../core/rules/shermanOperations';
+import { DiceMode, DiceRollPrompt, DiceRollResult } from '../types/dice';
+import {
+  createDeploymentPrompt,
+  createSectionDicePrompt,
+  createShermanGunHitPrompt,
+  createGunDamageCheckPrompt,
+  createGermanTankDamageEffectPrompt,
+  createShermanMGPrompt,
+  createFireCheckPrompt,
+  createCrewCasualtyPrompt,
+  createGermanAIPoolPrompt,
+  createPhase7EventPrompt,
+} from '../core/rules/dicePrompts';
+import { extractMissionSpawnPoints } from '../core/rules/missionLoader';
+import { executeAITankTurn, getTankInitialState } from '../core/rules/germanAI';
+import { hexDistance } from '../core/hex/math';
 
 const mission1Data = mission1Raw as MissionJSON;
 
@@ -64,6 +80,14 @@ export interface GameStoreState {
   selectedTargetId: string | null;
   setSelectedTargetId: (id: string | null) => void;
 
+  // Interactive Dice Roller State
+  activeDiceRoll: DiceRollPrompt | null;
+  diceModePreference: DiceMode;
+  setDiceModePreference: (mode: DiceMode) => void;
+  promptDiceRoll: (promptConfig: Omit<DiceRollPrompt, 'resolve' | 'reject'>) => Promise<DiceRollResult>;
+  resolveActiveDiceRoll: (result: DiceRollResult) => void;
+  cancelActiveDiceRoll: () => void;
+
   // Multi-slot & Campaign Mode State
   currentSlotId: string | null;
   gameMode: 'single' | 'campaign';
@@ -71,6 +95,7 @@ export interface GameStoreState {
   isIntermissionOpen: boolean;
   isSaveSlotsModalOpen: boolean;
   isNewGameModalOpen: boolean;
+
 
   // UI Modal Actions
   setIntermissionOpen: (isOpen: boolean) => void;
@@ -134,13 +159,149 @@ export interface GameStoreState {
   runPhase7EndTurn: (roll2d6?: number) => void;
 }
 
+async function promptMissionDeploymentRolls(
+  missionData: MissionJSON,
+  promptDiceRoll: (prompt: Omit<DiceRollPrompt, 'resolve' | 'reject'>) => Promise<DiceRollResult>
+): Promise<LoadMissionOptions> {
+  const { blackNumbers, redNumbers } = extractMissionSpawnPoints(missionData);
+  const selectedBlackSpawns: number[] = [];
+  const selectedRedSpawns: number[] = [];
+  let selectedPlayerBlackSpawn: number | undefined;
+
+  // 1. Check Sherman spawn
+  if (
+    missionData.playerDeployment.spawnMethod === 'RANDOM_BLACK_NUMBER' ||
+    !missionData.playerDeployment.hex
+  ) {
+    if (blackNumbers.length > 0) {
+      const prompt = createDeploymentPrompt({
+        unitLabel: 'Sherman',
+        spawnType: 'black',
+        availablePoints: blackNumbers.map((b) => ({ number: b.number, coord: b.hex, facing: b.facing })),
+        occupiedNumbers: selectedBlackSpawns,
+      });
+      const res = await promptDiceRoll(prompt);
+      const chosen = res.rolls[0] || 1;
+      selectedPlayerBlackSpawn = chosen;
+      selectedBlackSpawns.push(chosen);
+    }
+  }
+
+  // 2. Check enemy tanks
+  if (missionData.enemyDeployment.tanks) {
+    let tankCount = 1;
+    for (const group of missionData.enemyDeployment.tanks) {
+      for (let i = 0; i < group.count; i++) {
+        const available = blackNumbers.filter(
+          (b) =>
+            !selectedBlackSpawns.includes(b.number) &&
+            (!group.allowedNumbers || group.allowedNumbers.length > 0 ? group.allowedNumbers?.includes(b.number) : true)
+        );
+
+        if (available.length > 0) {
+          const prompt = createDeploymentPrompt({
+            unitLabel: `${group.type} #${tankCount++}`,
+            spawnType: 'black',
+            availablePoints: blackNumbers.map((b) => ({ number: b.number, coord: b.hex, facing: b.facing })),
+            occupiedNumbers: selectedBlackSpawns,
+          });
+          const res = await promptDiceRoll(prompt);
+          let chosen = res.rolls[0] || 1;
+          if (!available.some((a) => a.number === chosen)) {
+            chosen = available[0].number;
+          }
+          selectedBlackSpawns.push(chosen);
+        }
+      }
+    }
+  }
+
+  // 3. Check enemy infantry (e.g. RANDOM_UNIQUE_RED_NUMBERS)
+  if (missionData.enemyDeployment.infantry) {
+    let infCount = 1;
+    for (const inf of missionData.enemyDeployment.infantry) {
+      if (inf.spawnMethod === 'RANDOM_UNIQUE_RED_NUMBERS' && inf.count) {
+        for (let i = 0; i < inf.count; i++) {
+          const available = redNumbers.filter((r) => !selectedRedSpawns.includes(r.number));
+          if (available.length > 0) {
+            const prompt = createDeploymentPrompt({
+              unitLabel: `Infantería #${infCount++}`,
+              spawnType: 'red',
+              availablePoints: redNumbers.map((r) => ({ number: r.number, coord: r.hex })),
+              occupiedNumbers: selectedRedSpawns,
+            });
+            const res = await promptDiceRoll(prompt);
+            let chosen = res.rolls[0] || 1;
+            if (!available.some((a) => a.number === chosen)) {
+              chosen = available[0].number;
+            }
+            selectedRedSpawns.push(chosen);
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    selectedBlackSpawns,
+    selectedRedSpawns,
+    selectedPlayerBlackSpawn,
+  };
+}
+
 export const useGameStore = create<GameStoreState>((set, get) => ({
+
   boardState: null,
   combatLog: [],
   logVerbosity: 'compact',
   gameEndStatus: null,
   selectedTargetId: null,
   setSelectedTargetId: (id: string | null) => set({ selectedTargetId: id }),
+
+  // Interactive Dice Roller
+  activeDiceRoll: null,
+  diceModePreference:
+    typeof window !== 'undefined' && localStorage.getItem('sherman_dice_mode') === 'manual'
+      ? 'manual'
+      : 'auto',
+  setDiceModePreference: (mode: DiceMode) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sherman_dice_mode', mode);
+    }
+    set({ diceModePreference: mode });
+  },
+  promptDiceRoll: (promptConfig) => {
+    return new Promise<DiceRollResult>((resolve, reject) => {
+      set({
+        activeDiceRoll: {
+          ...promptConfig,
+          resolve: (res) => {
+            set({ activeDiceRoll: null });
+            resolve(res);
+          },
+          reject: (err) => {
+            set({ activeDiceRoll: null });
+            reject(err);
+          },
+        },
+      });
+    });
+  },
+  resolveActiveDiceRoll: (result: DiceRollResult) => {
+    const { activeDiceRoll } = get();
+    if (activeDiceRoll) {
+      activeDiceRoll.resolve(result);
+    }
+  },
+  cancelActiveDiceRoll: () => {
+    const { activeDiceRoll } = get();
+    if (activeDiceRoll) {
+      if (activeDiceRoll.reject) {
+        activeDiceRoll.reject(new Error('Dice roll canceled by user'));
+      }
+      set({ activeDiceRoll: null });
+    }
+  },
 
   currentSlotId: null,
   gameMode: 'single',
@@ -153,10 +314,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   setSaveSlotsModalOpen: (isOpen: boolean) => set({ isSaveSlotsModalOpen: isOpen }),
   setNewGameModalOpen: (isOpen: boolean) => set({ isNewGameModalOpen: isOpen }),
 
-  startNewSingleMission: (missionId: number, slotName?: string) => {
+  startNewSingleMission: async (missionId: number, slotName?: string) => {
     const targetMission = missions.find((m) => m.id === missionId) || missions[0];
     const newSlotId = `slot_${Date.now()}`;
-    const boardState = loadMissionState(targetMission);
+
+    // Close new game modal first so dice modal has full screen focus
+    set({ isNewGameModalOpen: false });
+
+    // Interactive Force Deployment Dice Rolls
+    const deploymentOptions = await promptMissionDeploymentRolls(targetMission, get().promptDiceRoll);
+    const boardState = loadMissionState(targetMission, deploymentOptions);
+
     const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
     const enemyLogs = boardState.enemyTanks.map((t) => {
       const fName = facingNames[t.facing] || `${t.facing}`;
@@ -193,18 +361,24 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       boardState,
       combatLog,
       gameEndStatus: null,
-      isNewGameModalOpen: false,
       isSaveSlotsModalOpen: false,
       isIntermissionOpen: false,
     });
   },
 
-  startNewCampaign: (type: CampaignType, options?: { missionIds?: number[]; count?: number; slotName?: string }) => {
+  startNewCampaign: async (type: CampaignType, options?: { missionIds?: number[]; count?: number; slotName?: string }) => {
     const campaign = createCampaign(type, options);
     const firstMissionId = campaign.missionSequence[0] || 1;
     const targetMission = missions.find((m) => m.id === firstMissionId) || missions[0];
     const newSlotId = `slot_${Date.now()}`;
-    const boardState = loadMissionState(targetMission);
+
+    // Close new game modal first
+    set({ isNewGameModalOpen: false });
+
+    // Interactive Force Deployment Dice Rolls
+    const deploymentOptions = await promptMissionDeploymentRolls(targetMission, get().promptDiceRoll);
+    const boardState = loadMissionState(targetMission, deploymentOptions);
+
     const facingNames = ['N (0)', 'NE (1)', 'SE (2)', 'S (3)', 'SO (4)', 'NO (5)'];
     const enemyLogs = boardState.enemyTanks.map((t) => {
       const fName = facingNames[t.facing] || `${t.facing}`;
@@ -233,6 +407,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       `📍 Despliegue inicial Sherman en (${boardState.sherman.coord.q},${boardState.sherman.coord.r}), encaramiento NO (5).`,
       ...enemyLogs,
     ];
+
 
     saveGameToSlot(newSlotId, {
       name: options?.slotName || `${typeNames[type]} - Misión ${firstMissionId}`,
@@ -599,126 +774,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   fireMainGunAt: (target: EnemyTank) => {
-    const { boardState, addLogMessage } = get();
-    if (!boardState) return;
-
-    if (!boardState.sherman.isLoaded) {
-      addLogMessage('⚠️ Cañón descargado: Se requiere acción de Cargar antes de disparar.');
-      return;
-    }
-
-    const hitCalc = calculateHitDifficulty(boardState.sherman, target, boardState);
-
-    if (!hitCalc.hasLOS) {
-      addLogMessage(`⚠️ Disparo imposible a ${target.type.toUpperCase()}: Sin Línea de Visión (${hitCalc.losReason}).`);
-      return;
-    }
-
-    const roll1 = Math.floor(Math.random() * 6) + 1;
-    const roll2 = Math.floor(Math.random() * 6) + 1;
-    const rollTotal = roll1 + roll2;
-    const hitSuccess = rollTotal >= hitCalc.totalDifficulty;
-
-    const modifiers = buildHitModifiersList(hitCalc);
-    const sectorName = SECTOR_NAMES[hitCalc.impactSector] || hitCalc.impactSector;
-    const diffStr = modifiers.map((m) => `${m.label} ${m.value}`).join(' + ');
-
-    const fireLogEntry: LogEntry = createLogEntry(
-      `🎯 Sherman dispara a ${target.type.toUpperCase()} (${target.coord.q},${target.coord.r}): ${
-        hitSuccess ? '¡IMPACTO!' : 'FALLADO'
-      } (${rollTotal} vs Dif ${hitCalc.totalDifficulty})`,
-      {
-        type: 'combat',
-        detail: `Disparo Sherman a ${target.type.toUpperCase()} en (${target.coord.q},${target.coord.r}) | Tirada 2d6 = [${roll1}, ${roll2}] = ${rollTotal} vs Dificultad ${hitCalc.totalDifficulty} (${diffStr}) | Sector de Impacto: ${sectorName}`,
-        breakdown: {
-          diceRolls: [roll1, roll2],
-          diceTotal: rollTotal,
-          targetDifficulty: hitCalc.totalDifficulty,
-          baseDistance: hitCalc.baseDistance,
-          targetSize: target.size,
-          modifiers,
-          impactSector: sectorName,
-        },
-      }
-    );
-
-    const logMessages: (string | LogEntry)[] = [fireLogEntry];
-    let updatedTanks = [...boardState.enemyTanks];
-
-    if (hitSuccess) {
-      // Step 2: 1d6 >= targetArmor - penetration
-      const targetArmor = target.armor[hitCalc.impactSector];
-      const dDmg = Math.floor(Math.random() * 6) + 1;
-      const damageRes = resolveDamageCheck(boardState.sherman.gunPenetration, targetArmor, dDmg);
-
-      if (damageRes.result === 'DAMAGED') {
-        // Step 3: What Damage table
-        const effectRoll = Math.floor(Math.random() * 6) + 1;
-        const damageEffect = resolveDamageEffect('germanTank', effectRoll);
-
-        updatedTanks = updatedTanks.map((t) => {
-          if (t.id === target.id) {
-            let newStatus = t.status;
-            if (damageEffect.outcome === 'DESTROYED') {
-              newStatus = 'destroyed';
-            } else if (damageEffect.outcome === 'DAMAGED') {
-              newStatus = t.status === 'damaged' ? 'destroyed' : 'damaged';
-            }
-            return { ...t, status: newStatus };
-          }
-          return t;
-        });
-
-        const isDestroyedNow = updatedTanks.find((t) => t.id === target.id)?.status === 'destroyed';
-        const damageLogEntry: LogEntry = createLogEntry(
-          `💥 Daño en ${target.type.toUpperCase()}: ${
-            isDestroyedNow ? '¡DESTRUIDO!' : damageEffect.outcome === 'TURRET_DAMAGED' ? 'TORRETA DAÑADA' : 'DAÑADO'
-          } (${damageEffect.description})`,
-          {
-            type: 'combat',
-            detail: `Paso 2 ¿Daños?: 1d6 [${dDmg}] >= Req ${damageRes.threshold} ➔ Paso 3 ¿Qué Daños?: 1d6 [${effectRoll}] ➔ ${damageEffect.description}`,
-            breakdown: {
-              diceRolls: [dDmg],
-              armorValue: targetArmor,
-              penetration: boardState.sherman.gunPenetration,
-              damageRoll: effectRoll,
-              damageEffect: damageEffect.description,
-            },
-          }
-        );
-        logMessages.push(damageLogEntry);
-      } else {
-        const bounceLogEntry: LogEntry = createLogEntry(
-          `🛡️ Disparo rebotado en ${target.type.toUpperCase()}: Sin Penetración (1d6 [${dDmg}] vs Req ${damageRes.threshold})`,
-          {
-            type: 'combat',
-            detail: `Paso 2 ¿Daños?: 1d6 [${dDmg}] < Blindaje ${targetArmor} - PEN ${boardState.sherman.gunPenetration} (${damageRes.threshold}) ➔ Sin Penetración`,
-          }
-        );
-        logMessages.push(bounceLogEntry);
-      }
-    }
-
-    set((state) => {
-      if (!state.boardState) return state;
-      const updatedState: BoardState = {
-        ...state.boardState,
-        sherman: {
-          ...state.boardState.sherman,
-          isLoaded: false,
-        },
-        enemyTanks: updatedTanks,
-      };
-
-      const gameEnd = checkGameEndConditions(updatedState);
-
-      return {
-        boardState: updatedState,
-        gameEndStatus: gameEnd.isGameOver ? gameEnd : state.gameEndStatus,
-        combatLog: [...state.combatLog, ...logMessages],
-      };
-    });
+    get().executeAttackFireGun(target);
   },
+
 
   repairImmobilized: () => {
     const { boardState, addLogMessage } = get();
@@ -902,8 +960,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  rollSectionDice: (presetRolls?: number[]) => {
-    const { boardState, addLogMessage } = get();
+  rollSectionDice: async (presetRolls?: number[]) => {
+    const { boardState, addLogMessage, promptDiceRoll } = get();
     if (!boardState || !boardState.shermanOperations) return;
     const ops = boardState.shermanOperations;
     if (!ops.currentSection) return;
@@ -932,11 +990,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return;
     }
 
-    const rolls = presetRolls ? [...presetRolls] : [];
+    let rolls = presetRolls ? [...presetRolls] : [];
     if (rolls.length === 0) {
-      for (let i = 0; i < diceInfo.totalDice; i++) {
-        rolls.push(Math.floor(Math.random() * 6) + 1);
-      }
+      const prompt = createSectionDicePrompt({
+        section: ops.currentSection,
+        terrain: ops.phaseStartTerrain,
+        diceCount: diceInfo.totalDice,
+        explanation: diceInfo.explanation,
+      });
+      const res = await promptDiceRoll(prompt);
+      rolls = [...res.rolls];
     }
     rolls.sort((a, b) => a - b);
 
@@ -964,6 +1027,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ],
     }));
   },
+
 
   executeManeuverForward: (consume?: { type: 'single'; value: number } | { type: 'double'; value: number }) => {
     const { boardState, addLogMessage } = get();
@@ -1242,7 +1306,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  executeAttackFireGun: (
+  executeAttackFireGun: async (
     target: EnemyTank,
     consume?: { type: 'single'; value: number } | { type: 'double'; value: number }
   ) => {
@@ -1295,9 +1359,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return;
     }
 
-    const roll1 = Math.floor(Math.random() * 6) + 1;
-    const roll2 = Math.floor(Math.random() * 6) + 1;
-    const rollTotal = roll1 + roll2;
+    // Step 1: Hit Check (2d6)
+    const hitPrompt = createShermanGunHitPrompt(boardState.sherman, target, boardState);
+    const hitRes = await get().promptDiceRoll(hitPrompt);
+    const [roll1, roll2] = hitRes.rolls;
+    const rollTotal = hitRes.total;
     const hitSuccess = rollTotal >= hitCalc.totalDifficulty;
 
     const modifiers = buildHitModifiersList(hitCalc);
@@ -1329,12 +1395,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     if (hitSuccess) {
       // Step 2: 1d6 >= targetArmor - penetration
       const targetArmor = target.armor[hitCalc.impactSector];
-      const dDmg = Math.floor(Math.random() * 6) + 1;
+      const dmgPrompt = createGunDamageCheckPrompt(
+        boardState.sherman.gunPenetration,
+        targetArmor,
+        `${target.type.toUpperCase()} #${target.spawnNumber || ''}`,
+        sectorName
+      );
+      const dmgRes = await get().promptDiceRoll(dmgPrompt);
+      const dDmg = dmgRes.rolls[0];
       const damageRes = resolveDamageCheck(boardState.sherman.gunPenetration, targetArmor, dDmg);
 
       if (damageRes.result === 'DAMAGED') {
         // Step 3: What Damage table
-        const effectRoll = Math.floor(Math.random() * 6) + 1;
+        const effPrompt = createGermanTankDamageEffectPrompt(`${target.type.toUpperCase()} #${target.spawnNumber || ''}`);
+        const effRes = await get().promptDiceRoll(effPrompt);
+        const effectRoll = effRes.rolls[0];
         const damageEffect = resolveDamageEffect('germanTank', effectRoll);
 
         updatedTanks = updatedTanks.map((t) => {
@@ -1380,6 +1455,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }
 
+
     set((state) => {
       if (!state.boardState) return state;
       const updatedBoardState: BoardState = {
@@ -1407,12 +1483,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  executeAttackFireMG: (
+  executeAttackFireMG: async (
     target: EnemyInfantry,
     consume?: { type: 'single'; value: number } | { type: 'double'; value: number } | number,
     presetRolls?: [number, number]
   ) => {
-    const { boardState, addLogMessage } = get();
+    const { boardState, addLogMessage, promptDiceRoll } = get();
     if (!boardState) return;
 
     const ops = boardState.shermanOperations;
@@ -1435,7 +1511,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }
 
-    const mgResult = executeMGAttack(boardState.sherman.coord, target, presetRolls);
+    let rolls = presetRolls;
+    if (!rolls) {
+      const mgPrompt = createShermanMGPrompt(target.coord, 7);
+      const res = await promptDiceRoll(mgPrompt);
+      rolls = [res.rolls[0], res.rolls[1]] as [number, number];
+    }
+
+    const mgResult = executeMGAttack(boardState.sherman.coord, target, rolls);
+
     if (mgResult.distance !== 1) {
       addLogMessage(`⚠️ ${mgResult.detail}`);
       return;
@@ -1732,10 +1816,27 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({ boardState: { ...boardState } });
   },
 
-  runPhase5: () => {
-    const { boardState } = get();
+  runPhase5: async () => {
+    const { boardState, promptDiceRoll } = get();
     if (!boardState) return;
-    const logMsg = executePhase5(boardState);
+
+    let rolls: number[] | undefined;
+    let casualtyRoll: number | undefined;
+
+    if (boardState.sherman.fireLevel > 0) {
+      const firePrompt = createFireCheckPrompt(boardState.sherman.fireLevel);
+      const res = await promptDiceRoll(firePrompt);
+      rolls = [...res.rolls];
+      const minRoll = Math.min(...rolls);
+      if (minRoll === 2) {
+        const isHatched = boardState.sherman.commanderPosition === 'hatched';
+        const kiaPrompt = createCrewCasualtyPrompt(isHatched);
+        const kiaRes = await promptDiceRoll(kiaPrompt);
+        casualtyRoll = kiaRes.rolls[0];
+      }
+    }
+
+    const logMsg = executePhase5(boardState, rolls, casualtyRoll);
     get().addLogMessage(logMsg);
 
     const gameEnd = checkGameEndConditions(boardState);
@@ -1745,16 +1846,32 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  runPhase6GermanAI: () => {
-    const { boardState } = get();
+  runPhase6GermanAI: async () => {
+    const { boardState, promptDiceRoll, addLogMessage } = get();
     if (!boardState) return;
 
-    const aiResults = runAllGermanActivations(boardState);
-    aiResults.forEach((res) => {
-      if (res.actionTaken !== 'NONE') {
-        get().addLogMessage(`🤖 IA ${res.tankType.toUpperCase()} #${res.tankId}: ${res.detail}`);
+    const activeTanks = [...boardState.enemyTanks]
+      .filter((t) => t.status !== 'destroyed')
+      .sort((a, b) => {
+        const distA = hexDistance(a.coord, boardState.sherman.coord);
+        const distB = hexDistance(b.coord, boardState.sherman.coord);
+        return distA - distB;
+      });
+
+    for (const tank of activeTanks) {
+      if (boardState.sherman.isDestroyed) {
+        addLogMessage('Sherman destruido: Fin de las operaciones enemigas.');
+        break;
       }
-    });
+      const { column, diceCount, startingTerrain } = getTankInitialState(tank, boardState);
+      const aiPrompt = createGermanAIPoolPrompt(tank, startingTerrain, column, diceCount);
+      const aiRes = await promptDiceRoll(aiPrompt);
+
+      const res = executeAITankTurn(tank, boardState, aiRes.rolls);
+      if (res.actionTaken !== 'NONE') {
+        addLogMessage(`🤖 IA ${res.tankType.toUpperCase()} #${res.tankId}: ${res.detail}`);
+      }
+    }
 
     boardState.currentPhase = TurnPhase.END_TURN_EVENTS;
     const gameEnd = checkGameEndConditions(boardState);
@@ -1765,13 +1882,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  runPhase7EndTurn: (roll2d6?: number) => {
-    const { boardState } = get();
+  runPhase7EndTurn: async (roll2d6?: number) => {
+    const { boardState, promptDiceRoll, addLogMessage } = get();
     if (!boardState) return;
 
-    const roll = roll2d6 || Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
+    let roll = roll2d6;
+    if (roll === undefined) {
+      const events = boardState.missionData?.endOfTurnEvents || [];
+      const prompt = createPhase7EventPrompt(events, boardState.currentTurn);
+      const res = await promptDiceRoll(prompt);
+      roll = res.total;
+    }
+
     const logMsg = executePhase7(boardState, roll);
-    get().addLogMessage(logMsg);
+    addLogMessage(logMsg);
 
     const gameEnd = checkGameEndConditions(boardState);
 
@@ -1780,4 +1904,5 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       gameEndStatus: gameEnd.isGameOver ? gameEnd : null,
     });
   },
+
 }));

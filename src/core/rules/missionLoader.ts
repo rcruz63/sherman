@@ -111,6 +111,40 @@ import { hexNeighbor } from '../hex/math';
 import { OPPOSITE_FACING } from '../hex/mapValidator';
 
 /**
+ * Extracts black and red spawn points defined in the mission hexes
+ */
+export function extractMissionSpawnPoints(missionData: MissionJSON): {
+  blackNumbers: BlackSpawnPoint[];
+  redNumbers: RedSpawnPoint[];
+} {
+  const blackNumbers: BlackSpawnPoint[] = [];
+  const redNumbers: RedSpawnPoint[] = [];
+
+  if (missionData.hexes && missionData.hexes.length > 0) {
+    missionData.hexes.forEach((h) => {
+      const q = h.col ?? (h as any).q ?? 0;
+      const r = h.row ?? (h as any).r ?? 0;
+      if (h.blackSpot) {
+        blackNumbers.push({
+          number: h.blackSpot.number,
+          hex: { q, r },
+          facing: h.blackSpot.facing,
+        });
+      }
+      if (h.redSpot !== undefined) {
+        redNumbers.push({
+          number: h.redSpot,
+          hex: { q, r },
+        });
+      }
+    });
+  }
+
+  return { blackNumbers, redNumbers };
+}
+
+
+/**
  * Loads a mission JSON into a fully initialized BoardState
  */
 export function loadMissionState(

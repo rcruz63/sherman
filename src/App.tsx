@@ -9,7 +9,9 @@ import { NewGameModal } from './components/modal/NewGameModal';
 import { SaveSlotsModal } from './components/modal/SaveSlotsModal';
 import { CampaignIntermissionModal } from './components/modal/CampaignIntermissionModal';
 import { MapEditorModal } from './components/editor/MapEditorModal';
+import { DiceRollerModal } from './components/dice/DiceRollerModal';
 import { BoardHex } from './types/game';
+
 import { calculateHitDifficulty } from './core/rules/combat';
 import { missions } from './data/missions';
 import { saveGameStateToStorage, loadGameStateFromStorage } from './core/storage/gamePersistence';
@@ -102,10 +104,12 @@ export const App: React.FC = () => {
     <div className="min-h-screen max-h-screen bg-slate-950 text-slate-100 p-2 md:p-4 font-sans flex flex-col gap-3 overflow-hidden">
       {/* Modal Overlays */}
       <GameOverModal />
+      <DiceRollerModal />
       <NewGameModal
         isOpen={isNewGameModalOpen}
         onClose={() => setNewGameModalOpen(false)}
       />
+
       <SaveSlotsModal
         isOpen={isSaveSlotsModalOpen}
         onClose={() => setSaveSlotsModalOpen(false)}
